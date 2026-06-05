@@ -1,0 +1,18 @@
+{
+  "name": "jumpseller-loyaltyos-connector",
+  "image": "mcr.microsoft.com/devcontainers/typescript-node:1-20-bookworm",
+  "features": {
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {}
+  },
+  "forwardPorts": [3001, 3002],
+  "portsAttributes": {
+    "3001": { "label": "connector" },
+    "3002": { "label": "loyaltyos-api" }
+  },
+  "postCreateCommand": "corepack enable && pnpm install && pnpm exec prisma generate",
+  "customizations": {
+    "vscode": {
+      "extensions": ["esbenp.prettier-vscode", "dbaeumer.vscode-eslint", "Prisma.prisma"]
+    }
+  }
+}
