@@ -72,8 +72,8 @@ Expected: `pnpm -v` prints `9.12.0`.
 {
   "compilerOptions": {
     "target": "ES2022",
-    "module": "ESNext",
-    "moduleResolution": "Bundler",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
@@ -88,6 +88,11 @@ Expected: `pnpm -v` prints `9.12.0`.
 
 - [ ] **Step 4: Create `vitest.config.ts`**
 
+> The DB `env` + `globalSetup` are intentionally **not** here yet — they depend on the Prisma
+> schema and `tests/setup/global-setup.ts`, both created in Task 3. Wiring them now would break
+> Task 2's `pnpm test` (vitest loads `globalSetup` before any test, and the file wouldn't exist).
+> Task 3 adds them.
+
 ```ts
 import { defineConfig } from 'vitest/config'
 
@@ -95,8 +100,6 @@ export default defineConfig({
   test: {
     environment: 'node',
     include: ['tests/**/*.test.ts'],
-    env: { DATABASE_URL: 'file:./prisma/test.db' },
-    globalSetup: './tests/setup/global-setup.ts',
   },
 })
 ```
@@ -129,7 +132,7 @@ export default tseslint.config(
 
 ```
 # Local SQLite database
-DATABASE_URL="file:./prisma/dev.db"
+DATABASE_URL="file:./dev.db"
 # Connector HTTP port
 PORT=3001
 ```
@@ -321,7 +324,7 @@ model DeadLetter {
 
 - [ ] **Step 2: Generate the Prisma client and create the dev DB**
 
-Run: `DATABASE_URL="file:./prisma/dev.db" pnpm prisma db push`
+Run: `DATABASE_URL="file:./dev.db" pnpm prisma db push`
 Expected: "Your database is now in sync with your Prisma schema." and the Prisma client is generated.
 
 - [ ] **Step 3: Create the Prisma singleton**
@@ -344,12 +347,30 @@ import { execSync } from 'node:child_process'
 export default function setup(): void {
   execSync('pnpm exec prisma db push --skip-generate --force-reset', {
     stdio: 'inherit',
-    env: { ...process.env, DATABASE_URL: 'file:./prisma/test.db' },
+    env: { ...process.env, DATABASE_URL: 'file:./test.db' },
   })
 }
 ```
 
-- [ ] **Step 5: Write the failing data-layer test**
+- [ ] **Step 5: Wire the test DB into `vitest.config.ts`**
+
+Now that the schema and `global-setup.ts` exist, update `vitest.config.ts` to point tests at a
+dedicated test DB and run the setup before the suite:
+
+```ts
+import { defineConfig } from 'vitest/config'
+
+export default defineConfig({
+  test: {
+    environment: 'node',
+    include: ['tests/**/*.test.ts'],
+    env: { DATABASE_URL: 'file:./test.db' },
+    globalSetup: './tests/setup/global-setup.ts',
+  },
+})
+```
+
+- [ ] **Step 6: Write the failing data-layer test**
 
 `tests/db.test.ts`:
 
@@ -381,15 +402,15 @@ describe('Install model', () => {
 })
 ```
 
-- [ ] **Step 6: Run the tests to verify they pass**
+- [ ] **Step 7: Run the tests to verify they pass**
 
 Run: `pnpm test`
 Expected: PASS — both `health` and `Install model` tests green. (`global-setup` resets `prisma/test.db` first.)
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 8: Commit**
 
 ```bash
-git add prisma/schema.prisma src/db.ts tests/setup/global-setup.ts tests/db.test.ts
+git add prisma/schema.prisma src/db.ts tests/setup/global-setup.ts tests/db.test.ts vitest.config.ts
 git commit -m "feat: add Prisma SQLite data layer with the 5 connector models"
 ```
 

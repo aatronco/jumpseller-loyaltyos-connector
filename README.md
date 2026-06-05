@@ -37,6 +37,24 @@ This project doubles as a **worked "from scratch" example** for rewriting the Ju
 developer documentation, deliberately demonstrating the parts the current docs leave thin:
 the full OAuth flow, webhook HMAC verification, idempotency, and error handling.
 
+## Running in Codespaces
+
+Open the repo in a GitHub Codespace — the devcontainer installs dependencies and generates the
+Prisma client automatically. Then:
+
+1. Start LoyaltyOS (Docker): `docker compose up -d` (from the LoyaltyOS repo).
+2. Start the connector: `pnpm dev` (listens on port 3001).
+3. **Make the connector reachable for OAuth callbacks and webhooks.** Codespaces does not let
+   `devcontainer.json` set a port to public visibility (a security measure), so set it once after
+   the Codespace starts:
+
+   ```bash
+   gh codespace ports visibility 3001:public -c $CODESPACE_NAME
+   ```
+
+   (Or right-click port **3001** in the Ports panel → *Port Visibility* → *Public*.) This yields
+   the stable `*.app.github.dev` URL used for the Jumpseller OAuth callback and webhooks.
+
 ## License
 
 MIT
