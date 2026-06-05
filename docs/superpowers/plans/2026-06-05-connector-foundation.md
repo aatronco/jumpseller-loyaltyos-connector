@@ -132,7 +132,7 @@ export default tseslint.config(
 
 ```
 # Local SQLite database
-DATABASE_URL="file:./prisma/dev.db"
+DATABASE_URL="file:./dev.db"
 # Connector HTTP port
 PORT=3001
 ```
@@ -324,7 +324,7 @@ model DeadLetter {
 
 - [ ] **Step 2: Generate the Prisma client and create the dev DB**
 
-Run: `DATABASE_URL="file:./prisma/dev.db" pnpm prisma db push`
+Run: `DATABASE_URL="file:./dev.db" pnpm prisma db push`
 Expected: "Your database is now in sync with your Prisma schema." and the Prisma client is generated.
 
 - [ ] **Step 3: Create the Prisma singleton**
@@ -347,7 +347,7 @@ import { execSync } from 'node:child_process'
 export default function setup(): void {
   execSync('pnpm exec prisma db push --skip-generate --force-reset', {
     stdio: 'inherit',
-    env: { ...process.env, DATABASE_URL: 'file:./prisma/test.db' },
+    env: { ...process.env, DATABASE_URL: 'file:./test.db' },
   })
 }
 ```
@@ -364,7 +364,7 @@ export default defineConfig({
   test: {
     environment: 'node',
     include: ['tests/**/*.test.ts'],
-    env: { DATABASE_URL: 'file:./prisma/test.db' },
+    env: { DATABASE_URL: 'file:./test.db' },
     globalSetup: './tests/setup/global-setup.ts',
   },
 })
