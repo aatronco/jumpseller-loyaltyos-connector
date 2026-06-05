@@ -1,0 +1,55 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Install {
+  id          String   @id @default(cuid())
+  storeId     String   @unique
+  storeUrl    String
+  accessToken String
+  scopes      String
+  installedAt DateTime @default(now())
+}
+
+model MemberMap {
+  id                   String @id @default(cuid())
+  storeId              String
+  jumpsellerCustomerId String
+  email                String
+  loyaltyMemberId      String
+
+  @@unique([storeId, jumpsellerCustomerId])
+}
+
+model ProcessedWebhook {
+  id          String   @id @default(cuid())
+  storeId     String
+  eventId     String
+  processedAt DateTime @default(now())
+
+  @@unique([storeId, eventId])
+}
+
+model Redemption {
+  id         String   @id @default(cuid())
+  storeId    String
+  memberId   String
+  rewardId   String
+  couponCode String
+  status     String
+  createdAt  DateTime @default(now())
+}
+
+model DeadLetter {
+  id        String   @id @default(cuid())
+  storeId   String
+  payload   String
+  error     String
+  attempts  Int      @default(0)
+  createdAt DateTime @default(now())
+}

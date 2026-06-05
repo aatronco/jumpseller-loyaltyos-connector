@@ -4,5 +4,7 @@ export default defineConfig({
   test: {
     environment: 'node',
     include: ['tests/**/*.test.ts'],
+    env: { DATABASE_URL: 'file:./prisma/test.db' },
+    globalSetup: './tests/setup/global-setup.ts',
   },
 })
