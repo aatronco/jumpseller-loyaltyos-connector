@@ -110,8 +110,13 @@ hours/month). Phase 2 (always-on production) is a swap, not a rewrite.
   acts as a signed intermediary: it issues a short-lived token bound to the storefront session's
   email and only returns the balance for that email (queried server-side with the admin API key).
   The LoyaltyOS API key never reaches the browser. *(Approved approach.)*
-- **Webhook authenticity:** HMAC-SHA256 verification on every inbound Jumpseller webhook.
+- **Webhook authenticity:** HMAC-SHA256 verification on every inbound Jumpseller webhook,
+  using a constant-time comparison (`crypto.timingSafeEqual`) **before** any payload field is
+  read or acted upon — otherwise a forged webhook could trigger arbitrary point mutations.
 - **OAuth secrets:** `APP_SECRET`, LoyaltyOS API key, and signing secret in env vars, never in client code.
+- **Token at rest:** the Jumpseller `accessToken` stored in `Install` must be encrypted at rest
+  (e.g. AES-256-GCM, matching LoyaltyOS's own credential handling) and never returned in error
+  responses or logs. *(Flagged by the Plan 1 security review for the OAuth slice.)*
 
 ## 7. Error handling (the gaps in current Jumpseller docs)
 
