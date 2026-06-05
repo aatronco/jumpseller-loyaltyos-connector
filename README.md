@@ -1,0 +1,42 @@
+# Jumpseller ↔ LoyaltyOS Connector
+
+A **Jumpseller App** that bridges a [Jumpseller](https://jumpseller.com) store with
+[LoyaltyOS](https://github.com/jvillatox/loyaltyos), the open-source self-hosted loyalty platform.
+Customers earn points on purchases, see their balance in a storefront widget, and redeem rewards
+for single-use coupons — all running locally at zero cost.
+
+> **Status:** 🚧 Phase 1 in development. Design spec is approved; implementation plan next.
+
+## What it does
+
+| Flow | How |
+|---|---|
+| **Earn points** | Jumpseller `order.created` webhook → connector → LoyaltyOS `POST /api/v1/events` |
+| **Show balance** | Connector-injected JS App renders a points widget on the storefront |
+| **Redeem rewards** | Customer redeems a LoyaltyOS reward → connector mints a single-use Jumpseller coupon |
+
+## Architecture
+
+```
+Jumpseller store  ◄──OAuth/API/webhooks──►  Connector (Node+Fastify+TS+SQLite)  ◄──REST──►  LoyaltyOS (Docker)
+```
+
+The connector is a standalone, stateful Jumpseller App: it stores OAuth installs, a
+customer↔member mapping, and webhook idempotency keys. See the
+[design spec](docs/superpowers/specs/2026-06-05-jumpseller-loyaltyos-connector-design.md)
+for the full architecture, data model, and security model.
+
+## Tech stack
+
+Node 20 · Fastify 4 · TypeScript · Zod · Prisma + SQLite · Vitest. Tunneled to a public
+HTTPS URL with `cloudflared` for local OAuth callbacks and webhooks.
+
+## Goals
+
+This project doubles as a **worked "from scratch" example** for rewriting the Jumpseller Apps
+developer documentation, deliberately demonstrating the parts the current docs leave thin:
+the full OAuth flow, webhook HMAC verification, idempotency, and error handling.
+
+## License
+
+MIT
