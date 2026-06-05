@@ -28,8 +28,8 @@ for the full architecture, data model, and security model.
 
 ## Tech stack
 
-Node 20 · Fastify 4 · TypeScript · Zod · Prisma + SQLite · Vitest. Tunneled to a public
-HTTPS URL with `cloudflared` for local OAuth callbacks and webhooks.
+Node 20 · Fastify 4 · TypeScript · Zod · Prisma + SQLite · Vitest. Runs in **GitHub Codespaces**
+with a public forwarded port for OAuth callbacks and webhooks; **GitHub Actions** for CI.
 
 ## Goals
 

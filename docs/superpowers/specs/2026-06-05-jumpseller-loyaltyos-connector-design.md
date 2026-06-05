@@ -29,17 +29,27 @@ A merchant can install the app via OAuth, and then:
 | Connector stack | Node 20 + Fastify 4 + TypeScript + Zod | Matches LoyaltyOS stack; clean doc example |
 | Connector state | Stateful, own DB | Demonstrates real OAuth storage, HMAC, idempotency (the doc gaps) |
 | Database | SQLite via Prisma (dev) | Single file, zero infra; Prisma matches LoyaltyOS; swap to Postgres in Phase 2 |
-| LoyaltyOS | Docker Compose, local, seed creds `dev-key` / `prog_dev` | Open source MIT, runs at `localhost:3002` |
-| Tunnel | `cloudflared` quick tunnel | Free, no account; public HTTPS → localhost |
-| Connector port | `localhost:3001` | Avoids LoyaltyOS (3002), admin (5173), portal (5174) |
+| LoyaltyOS | Docker Compose, seed creds `dev-key` / `prog_dev` | Open source MIT, runs at `localhost:3002` (inside the Codespace) |
+| Dev/demo environment | **GitHub Codespaces** (4-core) | Runs the whole stack in the cloud; demos don't depend on the dev's laptop |
+| Public HTTPS exposure | **Codespaces port forwarding** (public visibility) | Replaces cloudflared; stable `*.app.github.dev` URL that survives restarts |
+| CI | **GitHub Actions** | Free for public repos; runs lint + tests on push/PR |
+| Secrets | **Codespaces secrets** (+ Actions secrets) | `APP_SECRET`, LoyaltyOS API key, signing secret — never in the repo |
+| Docs hosting (sub-project #2) | **GitHub Pages** | Docusaurus deploys here |
+| Connector port | `3001` | Avoids LoyaltyOS (3002), admin (5173), portal (5174) |
 | Redemption UX | Synchronous (customer waits for code) | Cleaner demo than webhook-driven |
 | Widget balance auth | Connector as signed intermediary | Show balance without separate LoyaltyOS login (see §6) |
 
 ### Cost: Phase 1 is $0
-Everything runs on the developer's Mac. Demos work for anyone (including remote viewers
-via the tunnel URL) **only while the Mac is on and the 3 processes are running**
-(LoyaltyOS Docker, connector, cloudflared). Quick-tunnel URL changes on each restart →
-OAuth callback + webhook must be re-pointed. Phase 2 (production) is a swap, not a rewrite.
+The whole stack runs inside a **GitHub Codespace** (within the free 120 core-hours/month +
+15 GB storage). The connector port is forwarded with **public** visibility, giving a stable
+`*.app.github.dev` HTTPS URL for the OAuth callback and webhooks — it does **not** change on
+restart. Demos work for anyone, remotely, and the developer's laptop can be off: the Codespace
+is started from github.com (even a phone).
+
+**Caveats:** the Codespace auto-stops after inactivity (default 30 min) — not 24/7, so it's
+started shortly before a demo. Running LoyaltyOS (Postgres + Redis + API + workers) **plus** the
+connector needs a 4-core machine, which spends core-hours ~2× faster (120 core-hours ≈ 30 real
+hours/month). Phase 2 (always-on production) is a swap, not a rewrite.
 
 ## 3. Architecture
 
@@ -52,7 +62,7 @@ OAuth callback + webhook must be re-pointed. Phase 2 (production) is a swap, not
 │  - JS App (widget)◄──┼─────────│  - Widget/balance API   │         │  - rewards/:id/redeem │
 └─────────────────────┘         │  - Redeem endpoint      │         │  - <loyalty-widget>  │
         ▲                        └────────────────────────┘         └─────────────────────┘
-        │   public HTTPS (cloudflared quick tunnel) → localhost:3001
+        │   public HTTPS (Codespaces forwarded port, public) → :3001
 ```
 
 ## 4. Connector modules
@@ -115,20 +125,28 @@ OAuth callback + webhook must be re-pointed. Phase 2 (production) is a swap, not
 
 - **Framework:** Vitest + Supertest (LoyaltyOS convention).
 - **Unit:** HMAC verification, points-event mapping, idempotency dedup, coupon creation payload.
-- **Integration:** against a locally running LoyaltyOS (Docker Compose).
-- **E2E (manual):** real test store via the tunnel; verified with the `jumpseller-api` skill.
+- **Integration:** against a locally running LoyaltyOS (Docker Compose, inside the Codespace).
+- **CI:** GitHub Actions runs lint + unit/integration tests on push and PR.
+- **E2E (manual):** real test store via the Codespace public URL; verified with the `jumpseller-api` skill.
 
-## 9. Local run / deployment (Phase 1)
+## 9. Run / demo environment (Phase 1) — GitHub Codespaces
 
-1. LoyaltyOS: `docker compose up -d` from its repo (API at `:3002`, seed `dev-key`/`prog_dev`).
-2. Connector: `pnpm dev` → `localhost:3001`.
-3. Tunnel: `cloudflared tunnel --url http://localhost:3001` → public HTTPS URL.
-4. Jumpseller App config: Root URL + Redirect URL = tunnel URL; install on `alejandrotest`.
+A `.devcontainer` defines the environment (Node 20, Docker-in-Docker for LoyaltyOS, pnpm).
+
+1. Open the repo in a Codespace (4-core).
+2. LoyaltyOS: `docker compose up -d` (API at `:3002`, seed `dev-key`/`prog_dev`).
+3. Connector: `pnpm dev` → port `3001`.
+4. Set port `3001` forwarding to **public** → copy the `*.app.github.dev` URL.
+5. Jumpseller App config: Root URL + Redirect URL = that URL; install on `alejandrotest`.
+6. Secrets (`APP_SECRET`, LoyaltyOS API key, signing secret) come from Codespaces secrets, not files.
+
+The forwarded URL is stable for the Codespace's lifetime, so OAuth callback + webhook are
+configured once. To demo, start the Codespace (laptop not required) and confirm the stack is up.
 
 ## 10. Out of scope (Phase 1)
 
 - Customer-sync webhook (`customer.created`) — earn flow creates members lazily on first order.
-- Production hosting, named/stable tunnel, Postgres (all Phase 2 swaps).
+- Always-on production hosting, Postgres (Phase 2 swaps — Codespaces is dev/demo, not 24/7).
 - The documentation rewrite (sub-project #2).
 - Multi-store support beyond what the data model already allows.
 
