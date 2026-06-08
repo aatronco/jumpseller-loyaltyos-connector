@@ -12,13 +12,16 @@ describe('Install model', () => {
       data: {
         storeId,
         storeUrl: 'https://x.jumpseller.com',
-        accessToken: 'token-abc',
+        accessToken: 'enc-access',
+        refreshToken: 'enc-refresh',
         scopes: 'read_orders,write_promotions',
+        tokenExpiresAt: new Date('2026-01-01T00:00:00Z'),
       },
     })
 
     const found = await prisma.install.findUnique({ where: { storeId } })
     expect(found?.storeUrl).toBe('https://x.jumpseller.com')
+    expect(found?.refreshToken).toBe('enc-refresh')
 
     await prisma.install.delete({ where: { storeId } })
   })
