@@ -8,12 +8,14 @@ datasource db {
 }
 
 model Install {
-  id          String   @id @default(cuid())
-  storeId     String   @unique
-  storeUrl    String
-  accessToken String
-  scopes      String
-  installedAt DateTime @default(now())
+  id             String   @id @default(cuid())
+  storeId        String   @unique
+  storeUrl       String
+  accessToken    String
+  refreshToken   String
+  scopes         String
+  tokenExpiresAt DateTime
+  installedAt    DateTime @default(now())
 }
 
 model MemberMap {
