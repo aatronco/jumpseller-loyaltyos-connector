@@ -32,7 +32,8 @@ export class JumpsellerClient {
       body: body === undefined ? undefined : JSON.stringify(body),
     })
     if (!res.ok) throw new Error(`Jumpseller API ${method} ${path} failed: ${res.status}`)
-    return (await res.json()) as T
+    const text = await res.text()
+    return (text ? JSON.parse(text) : {}) as T
   }
 
   async getStoreInfo(): Promise<StoreInfo> {

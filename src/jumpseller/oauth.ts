@@ -21,10 +21,13 @@ interface TokenResponse {
 }
 
 function toTokenSet(json: TokenResponse): TokenSet {
+  // Use a relative duration from when we received the token rather than
+  // Jumpseller's server-side created_at, so host/server clock skew can't
+  // misclassify a token's validity.
   return {
     accessToken: json.access_token,
     refreshToken: json.refresh_token,
-    expiresAt: new Date((json.created_at + json.expires_in) * 1000),
+    expiresAt: new Date(Date.now() + json.expires_in * 1000),
   }
 }
 

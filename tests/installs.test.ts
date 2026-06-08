@@ -40,12 +40,15 @@ describe('saveInstall + getValidAccessToken', () => {
     await saveInstall({ storeId, storeUrl: 'https://s.jumpseller.com', scopes: 'read_store', tokens: { accessToken: 'old-at', refreshToken: 'old-rt', expiresAt: past } }, KEY)
 
     const fetchFn = vi.fn().mockResolvedValue(tokenResponse('new-at', 'new-rt'))
+    const before = Date.now()
     const token = await getValidAccessToken(storeId, app, KEY, fetchFn as unknown as typeof fetch)
     expect(token).toBe('new-at')
     expect(fetchFn).toHaveBeenCalledOnce()
 
     const row = await prisma.install.findUniqueOrThrow({ where: { storeId } })
-    expect(row.tokenExpiresAt.getTime()).toBe((1_700_000_000 + 3600) * 1000)
+    // expiry is now computed from receipt time + expires_in (3600s)
+    expect(row.tokenExpiresAt.getTime()).toBeGreaterThanOrEqual(before + 3600 * 1000)
+    expect(row.tokenExpiresAt.getTime()).toBeLessThanOrEqual(Date.now() + 3600 * 1000)
 
     await prisma.install.delete({ where: { storeId } })
   })

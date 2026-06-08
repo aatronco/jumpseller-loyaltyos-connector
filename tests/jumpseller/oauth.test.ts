@@ -36,7 +36,9 @@ describe('buildAuthorizeUrl', () => {
 describe('exchangeCode', () => {
   it('posts the code and returns a TokenSet with computed expiry', async () => {
     const fetchFn = vi.fn().mockResolvedValue(tokenResponse())
+    const before = Date.now()
     const tokens = await exchangeCode(app, 'the-code', fetchFn as unknown as typeof fetch)
+    const after = Date.now()
     expect(fetchFn).toHaveBeenCalledWith('https://accounts.jumpseller.com/oauth/token', expect.objectContaining({ method: 'POST' }))
     const body = (fetchFn.mock.calls[0][1] as { body: URLSearchParams }).body
     expect(body.get('grant_type')).toBe('authorization_code')
@@ -44,7 +46,9 @@ describe('exchangeCode', () => {
     expect(body.get('client_secret')).toBe('csecret')
     expect(tokens.accessToken).toBe('at')
     expect(tokens.refreshToken).toBe('rt')
-    expect(tokens.expiresAt.getTime()).toBe((1_700_000_000 + 3600) * 1000)
+    // expiry is computed from receipt time + expires_in (3600s), not the server created_at
+    expect(tokens.expiresAt.getTime()).toBeGreaterThanOrEqual(before + 3600 * 1000)
+    expect(tokens.expiresAt.getTime()).toBeLessThanOrEqual(after + 3600 * 1000)
   })
 
   it('throws on non-200', async () => {
