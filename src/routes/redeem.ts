@@ -6,6 +6,7 @@ import { getValidAccessToken } from '../installs.js'
 import { JumpsellerClient } from '../jumpseller/client.js'
 import type { OAuthAppConfig } from '../jumpseller/oauth.js'
 import type { LoyaltyOsClient } from '../loyaltyos/client.js'
+import { applyWidgetCors } from '../widget-cors.js'
 
 export interface RedeemRoutesDeps {
   loyalty: LoyaltyOsClient
@@ -17,6 +18,7 @@ export interface RedeemRoutesDeps {
 const redeemBodySchema = z.object({
   email: z.string().email(),
   store: z.string().min(1),
+  customerId: z.string().min(1),
   rewardId: z.string().min(1),
 })
 
@@ -49,7 +51,7 @@ export async function redeemRoutes(server: FastifyInstance, deps: RedeemRoutesDe
   const fetchFn = deps.fetchFn ?? fetch
 
   server.post('/widget/redeem', async (req, reply) => {
-    reply.header('access-control-allow-origin', '*')
+    await applyWidgetCors(req, reply)
 
     if (rateLimited(req.ip)) {
       return reply.code(429).send({ error: 'rate_limited' })
@@ -59,10 +61,14 @@ export async function redeemRoutes(server: FastifyInstance, deps: RedeemRoutesDe
     if (!parsed.success) {
       return reply.code(400).send({ error: 'invalid_request' })
     }
-    const { email, store, rewardId } = parsed.data
+    const { email, store, customerId, rewardId } = parsed.data
 
-    const mapping = await prisma.memberMap.findFirst({ where: { storeId: store, email } })
-    if (!mapping) {
+    // Identity binding: same dual-check as /widget/balance — both customerId
+    // and email must match the install-time mapping.
+    const mapping = await prisma.memberMap.findUnique({
+      where: { storeId_jumpsellerCustomerId: { storeId: store, jumpsellerCustomerId: customerId } },
+    })
+    if (!mapping || mapping.email.toLowerCase() !== email.toLowerCase()) {
       return reply.code(404).send({ error: 'unknown_member' })
     }
 

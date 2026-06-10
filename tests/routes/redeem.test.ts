@@ -72,7 +72,7 @@ describe('POST /widget/redeem', () => {
     const fetchFn = vi.fn().mockResolvedValue(new Response(JSON.stringify({ promotion: { id: 1 } }), { status: 201 }))
     const app = appWith(loyalty, fetchFn as unknown as typeof fetch)
 
-    const res = await postRedeem(app, { email: 'r@x.com', store: STORE, rewardId: 'rw1' })
+    const res = await postRedeem(app, { email: 'r@x.com', store: STORE, customerId: '5', rewardId: 'rw1' })
     expect(res.statusCode).toBe(200)
     const { code } = res.json() as { code: string }
     expect(code).toMatch(/^LOYAL-[0-9A-F]{8}$/)
@@ -92,7 +92,7 @@ describe('POST /widget/redeem', () => {
   it('404s for an unmapped customer', async () => {
     const loyalty = stubLoyalty()
     const app = appWith(loyalty, vi.fn() as unknown as typeof fetch)
-    const res = await postRedeem(app, { email: 'nadie@x.com', store: STORE, rewardId: 'rw1' })
+    const res = await postRedeem(app, { email: 'nadie@x.com', store: STORE, customerId: '99', rewardId: 'rw1' })
     expect(res.statusCode).toBe(404)
     expect(loyalty.redeemReward).not.toHaveBeenCalled()
     await app.close()
@@ -103,7 +103,7 @@ describe('POST /widget/redeem', () => {
     const loyalty = stubLoyalty()
     loyalty.getReward.mockResolvedValue({ id: 'rw2', isActive: true, pointsCost: 50, stock: null, metadata: {} })
     const app = appWith(loyalty, vi.fn() as unknown as typeof fetch)
-    const res = await postRedeem(app, { email: 'r@x.com', store: STORE, rewardId: 'rw2' })
+    const res = await postRedeem(app, { email: 'r@x.com', store: STORE, customerId: '5', rewardId: 'rw2' })
     expect(res.statusCode).toBe(422)
     expect(loyalty.redeemReward).not.toHaveBeenCalled()
     await app.close()
@@ -114,7 +114,7 @@ describe('POST /widget/redeem', () => {
     const loyalty = stubLoyalty()
     loyalty.redeemReward.mockRejectedValue(new Error('LoyaltyOS POST failed: 422'))
     const app = appWith(loyalty, vi.fn() as unknown as typeof fetch)
-    const res = await postRedeem(app, { email: 'r@x.com', store: STORE, rewardId: 'rw1' })
+    const res = await postRedeem(app, { email: 'r@x.com', store: STORE, customerId: '5', rewardId: 'rw1' })
     expect(res.statusCode).toBe(402)
     await app.close()
   })
@@ -125,7 +125,7 @@ describe('POST /widget/redeem', () => {
     const fetchFn = vi.fn().mockResolvedValue(new Response('err', { status: 500 }))
     const app = appWith(loyalty, fetchFn as unknown as typeof fetch)
 
-    const res = await postRedeem(app, { email: 'r@x.com', store: STORE, rewardId: 'rw1' })
+    const res = await postRedeem(app, { email: 'r@x.com', store: STORE, customerId: '5', rewardId: 'rw1' })
     expect(res.statusCode).toBe(502)
 
     const row = await prisma.redemption.findFirst({ where: { storeId: STORE } })

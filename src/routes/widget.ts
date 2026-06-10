@@ -59,7 +59,7 @@ function widgetScript(appUrl: string, portalUrl: string): string {
         fetch('${appUrl}/widget/redeem', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: email, store: storeCode, rewardId: rewardId }),
+          body: JSON.stringify({ email: email, store: storeCode, customerId: customerId, rewardId: rewardId }),
         })
           .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j } }) })
           .then(function (res) {
