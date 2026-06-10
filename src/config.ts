@@ -9,6 +9,7 @@ const schema = z.object({
     .string()
     .default('read_orders read_customers write_promotions write_jsapps write_hooks read_store'),
   TOKEN_ENCRYPTION_KEY: z.string().regex(/^[0-9a-fA-F]{64}$/, 'must be 64 hex chars (32 bytes)'),
+  JUMPSELLER_WEBHOOK_SECRET: z.string().min(1),
   LOYALTYOS_API_URL: z.string().url().default('http://localhost:3002'),
   LOYALTYOS_API_KEY: z.string().default('dev-key'),
   LOYALTYOS_PROGRAM_ID: z.string().default('prog_dev'),

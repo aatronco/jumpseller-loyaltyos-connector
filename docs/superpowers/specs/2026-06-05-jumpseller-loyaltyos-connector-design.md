@@ -106,10 +106,13 @@ hours/month). Phase 2 (always-on production) is a swap, not a rewrite.
 
 ## 6. Security
 
-- **Widget balance access:** customers must not be able to query others' balances. The connector
-  acts as a signed intermediary: it issues a short-lived token bound to the storefront session's
-  email and only returns the balance for that email (queried server-side with the admin API key).
-  The LoyaltyOS API key never reaches the browser. *(Approved approach.)*
+- **Widget balance access** *(revised in Plan 4)*: Jumpseller's JS Apps and storefront JS library
+  cannot attest the logged-in customer, so a "signed intermediary" cannot bind a token to a session
+  it can't see. The theme exposes `{{ customer.email }}` via a meta tag, and the connector's
+  balance endpoint accepts an email but returns ONLY a points count: zero PII, no member ids,
+  unknown emails return a flat `{points: 0}` (no membership signal), per-IP rate limiting.
+  The LoyaltyOS API key never reaches the browser. True per-customer authentication (portal
+  session / magic-link attestation) is a Phase 2 item.
 - **Webhook authenticity:** HMAC-SHA256 verification on every inbound Jumpseller webhook,
   using a constant-time comparison (`crypto.timingSafeEqual`) **before** any payload field is
   read or acted upon — otherwise a forged webhook could trigger arbitrary point mutations.

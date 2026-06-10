@@ -6,6 +6,7 @@ const valid = {
   JUMPSELLER_APP_ID: 'app-id',
   JUMPSELLER_APP_SECRET: 'app-secret',
   TOKEN_ENCRYPTION_KEY: 'a'.repeat(64),
+  JUMPSELLER_WEBHOOK_SECRET: 'hooks-token',
 }
 
 describe('loadConfig', () => {

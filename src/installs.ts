@@ -11,6 +11,10 @@ export interface InstallInput {
 
 const EXPIRY_SKEW_MS = 60_000
 
+// Single-flight guard: concurrent callers during a refresh share one promise,
+// so a rotated refresh_token is never consumed twice (Plan-2 review fix).
+const refreshInFlight = new Map<string, Promise<string>>()
+
 export async function saveInstall(input: InstallInput, keyHex: string): Promise<void> {
   const data = {
     storeUrl: input.storeUrl,
@@ -39,14 +43,23 @@ export async function getValidAccessToken(
     return decrypt(install.accessToken, keyHex)
   }
 
-  const refreshed = await refreshAccessToken(app, decrypt(install.refreshToken, keyHex), fetchFn)
-  await prisma.install.update({
-    where: { storeId },
-    data: {
-      accessToken: encrypt(refreshed.accessToken, keyHex),
-      refreshToken: encrypt(refreshed.refreshToken, keyHex),
-      tokenExpiresAt: refreshed.expiresAt,
-    },
-  })
-  return refreshed.accessToken
+  const inFlight = refreshInFlight.get(storeId)
+  if (inFlight) return inFlight
+
+  const refresh = (async () => {
+    const refreshed = await refreshAccessToken(app, decrypt(install.refreshToken, keyHex), fetchFn)
+    await prisma.install.update({
+      where: { storeId },
+      data: {
+        accessToken: encrypt(refreshed.accessToken, keyHex),
+        refreshToken: encrypt(refreshed.refreshToken, keyHex),
+        tokenExpiresAt: refreshed.expiresAt,
+      },
+    })
+    return refreshed.accessToken
+  })()
+
+  const wrapped = refresh.finally(() => refreshInFlight.delete(storeId))
+  refreshInFlight.set(storeId, wrapped)
+  return wrapped
 }

@@ -52,4 +52,29 @@ describe('saveInstall + getValidAccessToken', () => {
 
     await prisma.install.delete({ where: { storeId } })
   })
+
+  it('single-flights concurrent refreshes (rotated refresh token consumed once)', async () => {
+    const storeId = 'store_inst_race'
+    const past = new Date(Date.now() - 1000)
+    await saveInstall(
+      {
+        storeId,
+        storeUrl: 'https://s.jumpseller.com',
+        scopes: 'read_store',
+        tokens: { accessToken: 'old-at', refreshToken: 'old-rt', expiresAt: past },
+      },
+      KEY,
+    )
+
+    const fetchFn = vi.fn().mockResolvedValue(tokenResponse('race-at', 'race-rt'))
+    const [a, b] = await Promise.all([
+      getValidAccessToken(storeId, app, KEY, fetchFn as unknown as typeof fetch),
+      getValidAccessToken(storeId, app, KEY, fetchFn as unknown as typeof fetch),
+    ])
+    expect(a).toBe('race-at')
+    expect(b).toBe('race-at')
+    expect(fetchFn).toHaveBeenCalledTimes(1) // one refresh for both callers
+
+    await prisma.install.delete({ where: { storeId } })
+  })
 })
