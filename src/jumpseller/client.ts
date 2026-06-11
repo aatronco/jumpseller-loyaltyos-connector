@@ -64,16 +64,19 @@ export class JumpsellerClient {
   }
 
   async createDiscountCoupon(input: CouponInput): Promise<PromotionResult> {
-    const discountField =
+    // Verified against the live API: `type` is required ('fix' | 'percent')
+    // and selects which discount_amount_* field is read.
+    const discountFields =
       input.type === 'percent'
-        ? { discount_amount_percent: input.value }
-        : { discount_amount_fix: input.value }
+        ? { type: 'percent', discount_amount_percent: input.value }
+        : { type: 'fix', discount_amount_fix: input.value }
     const json = await this.request<{ promotion: PromotionResult }>('POST', '/promotions.json', {
       promotion: {
         name: `LoyaltyOS reward ${input.code}`,
         discount_target: 'order',
-        ...discountField,
-        lasts: 'max_times_used',
+        ...discountFields,
+        enabled: true,
+        customers: 'all',
         max_times_used: 1,
         cumulative: false,
         coupons: [{ code: input.code, usage_limit: 1 }],

@@ -50,6 +50,18 @@ function couponCode(): string {
 export async function redeemRoutes(server: FastifyInstance, deps: RedeemRoutesDeps): Promise<void> {
   const fetchFn = deps.fetchFn ?? fetch
 
+  // CORS preflight: the widget POSTs JSON cross-origin, so browsers send
+  // OPTIONS first. Without this the fetch fails before reaching the handler.
+  server.options('/widget/redeem', async (req, reply) => {
+    await applyWidgetCors(req, reply)
+    return reply
+      .header('access-control-allow-methods', 'POST, OPTIONS')
+      .header('access-control-allow-headers', 'content-type')
+      .header('access-control-max-age', '86400')
+      .code(204)
+      .send()
+  })
+
   server.post('/widget/redeem', async (req, reply) => {
     await applyWidgetCors(req, reply)
 
@@ -72,9 +84,19 @@ export async function redeemRoutes(server: FastifyInstance, deps: RedeemRoutesDe
       return reply.code(404).send({ error: 'unknown_member' })
     }
 
-    // The reward's metadata declares the coupon it maps to; anything else is unsupported.
+    // The reward's metadata declares the coupon it maps to; anything else is
+    // unsupported. LoyaltyOS rewards have no metadata column, so fall back to
+    // parsing the description as JSON ({"couponType":"fixed","couponValue":N}).
     const reward = await deps.loyalty.getReward(rewardId)
-    const coupon = couponMetadataSchema.safeParse(reward.metadata ?? {})
+    let couponSource: unknown = reward.metadata
+    if (!couponSource && reward.description) {
+      try {
+        couponSource = JSON.parse(reward.description)
+      } catch {
+        /* not JSON — treated as unsupported below */
+      }
+    }
+    const coupon = couponMetadataSchema.safeParse(couponSource ?? {})
     if (!coupon.success) {
       return reply.code(422).send({ error: 'unsupported_reward' })
     }

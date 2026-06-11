@@ -20,6 +20,7 @@ export interface Reward {
   isActive: boolean
   pointsCost: number
   stock: number | null
+  description?: string | null
   metadata?: Record<string, unknown>
 }
 
