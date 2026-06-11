@@ -17,6 +17,7 @@ export interface MemberBalance {
 
 export interface Reward {
   id: string
+  name?: string
   isActive: boolean
   pointsCost: number
   stock: number | null
@@ -90,6 +91,11 @@ export class LoyaltyOsClient {
       `/api/v1/members/${encodeURIComponent(memberId)}/balance`,
     )
     return json.data
+  }
+
+  async listRewards(): Promise<Reward[]> {
+    const json = await this.request<{ data: { items: Reward[] } }>('GET', '/api/v1/rewards')
+    return json.data.items
   }
 
   async getReward(rewardId: string): Promise<Reward> {
