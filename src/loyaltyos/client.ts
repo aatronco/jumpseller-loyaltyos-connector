@@ -63,12 +63,12 @@ export class LoyaltyOsClient {
   }
 
   async findMemberByEmail(email: string): Promise<LoyaltyMember | null> {
-    const json = await this.request<{ items: LoyaltyMember[] }>(
+    const json = await this.request<{ data: { items: LoyaltyMember[] } }>(
       'GET',
       `/api/v1/members?search=${encodeURIComponent(email)}`,
     )
     // search is contains-match over several fields; require an exact email match
-    const exact = json.items.find((m) => m.email?.toLowerCase() === email.toLowerCase())
+    const exact = json.data.items.find((m) => m.email?.toLowerCase() === email.toLowerCase())
     return exact ?? null
   }
 

@@ -11,11 +11,13 @@ describe('LoyaltyOsClient', () => {
   it('findMemberByEmail filters search results to an exact (case-insensitive) email match', async () => {
     const fetchFn = vi.fn().mockResolvedValue(
       jsonResponse({
-        items: [
-          { id: 'm1', email: 'other-ana@x.com' }, // contains-match noise
-          { id: 'm2', email: 'Ana@X.com' },
-        ],
-        total: 2,
+        data: {
+          items: [
+            { id: 'm1', email: 'other-ana@x.com' }, // contains-match noise
+            { id: 'm2', email: 'Ana@X.com' },
+          ],
+          total: 2,
+        },
       }),
     )
     const client = new LoyaltyOsClient(cfg, fetchFn as unknown as typeof fetch)
@@ -30,7 +32,7 @@ describe('LoyaltyOsClient', () => {
   })
 
   it('findMemberByEmail returns null when no exact match exists', async () => {
-    const fetchFn = vi.fn().mockResolvedValue(jsonResponse({ items: [{ id: 'm1', email: 'nope@x.com' }], total: 1 }))
+    const fetchFn = vi.fn().mockResolvedValue(jsonResponse({ data: { items: [{ id: 'm1', email: 'nope@x.com' }], total: 1 } }))
     const client = new LoyaltyOsClient(cfg, fetchFn as unknown as typeof fetch)
     expect(await client.findMemberByEmail('ana@x.com')).toBeNull()
   })
@@ -46,7 +48,7 @@ describe('LoyaltyOsClient', () => {
   })
 
   it('ensureMember returns the existing member without creating', async () => {
-    const fetchFn = vi.fn().mockResolvedValue(jsonResponse({ items: [{ id: 'm9', email: 'a@b.c' }], total: 1 }))
+    const fetchFn = vi.fn().mockResolvedValue(jsonResponse({ data: { items: [{ id: 'm9', email: 'a@b.c' }], total: 1 } }))
     const client = new LoyaltyOsClient(cfg, fetchFn as unknown as typeof fetch)
     const member = await client.ensureMember('a@b.c')
     expect(member.id).toBe('m9')
@@ -56,7 +58,7 @@ describe('LoyaltyOsClient', () => {
   it('ensureMember creates when the member does not exist', async () => {
     const fetchFn = vi
       .fn()
-      .mockResolvedValueOnce(jsonResponse({ items: [], total: 0 }))
+      .mockResolvedValueOnce(jsonResponse({ data: { items: [], total: 0 } }))
       .mockResolvedValueOnce(jsonResponse({ data: { id: 'created1' } }, 201))
     const client = new LoyaltyOsClient(cfg, fetchFn as unknown as typeof fetch)
     const member = await client.ensureMember('a@b.c')

@@ -13,7 +13,7 @@ export interface ServerOptions {
 }
 
 export function buildServer(opts: ServerOptions = {}): FastifyInstance {
-  const app = Fastify({ logger: false })
+  const app = Fastify({ logger: { level: 'info' } })
   app.register(healthRoutes)
   if (opts.oauth) {
     app.register(oauthRoutes, opts.oauth)
