@@ -37,6 +37,14 @@ This project doubles as a **worked "from scratch" example** for rewriting the Ju
 developer documentation, deliberately demonstrating the parts the current docs leave thin:
 the full OAuth flow, webhook HMAC verification, idempotency, and error handling.
 
+## Storefront widget setup (one-time, per theme)
+
+The widget needs to know which customer is logged in. Jumpseller's JS Apps cannot read the
+customer session, so the theme must expose it: copy the two `<meta>` lines from
+[`theme-snippet/loyaltyos-meta.liquid`](theme-snippet/loyaltyos-meta.liquid) into the `<head>`
+of the theme's `layout.liquid`. The widget script itself is injected automatically when the
+app is installed (JS App → `/widget.js`).
+
 ## Running in Codespaces
 
 Open the repo in a GitHub Codespace — the devcontainer installs dependencies and generates the

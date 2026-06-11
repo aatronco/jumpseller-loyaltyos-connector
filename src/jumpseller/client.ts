@@ -15,6 +15,16 @@ export interface JsAppResult {
   id: number
 }
 
+export interface CouponInput {
+  code: string
+  type: 'fixed' | 'percent'
+  value: number
+}
+
+export interface PromotionResult {
+  id: number
+}
+
 export class JumpsellerClient {
   constructor(
     private readonly accessToken: string,
@@ -51,5 +61,27 @@ export class JumpsellerClient {
       app: { url, template, element },
     })
     return json.app
+  }
+
+  async createDiscountCoupon(input: CouponInput): Promise<PromotionResult> {
+    // Verified against the live API: `type` is required ('fix' | 'percent')
+    // and selects which discount_amount_* field is read.
+    const discountFields =
+      input.type === 'percent'
+        ? { type: 'percent', discount_amount_percent: input.value }
+        : { type: 'fix', discount_amount_fix: input.value }
+    const json = await this.request<{ promotion: PromotionResult }>('POST', '/promotions.json', {
+      promotion: {
+        name: `LoyaltyOS reward ${input.code}`,
+        discount_target: 'order',
+        ...discountFields,
+        enabled: true,
+        customers: 'all',
+        max_times_used: 1,
+        cumulative: false,
+        coupons: [{ code: input.code, usage_limit: 1 }],
+      },
+    })
+    return json.promotion
   }
 }

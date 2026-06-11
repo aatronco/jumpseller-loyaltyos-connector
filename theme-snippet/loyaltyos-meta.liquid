@@ -1,0 +1,7 @@
+{% comment %}
+  LoyaltyOS connector — customer identity for the storefront widget.
+  Paste these lines inside the <head> of your theme's layout.liquid.
+  The meta is empty when no customer is logged in, so the widget stays hidden.
+{% endcomment %}
+<meta name="loyaltyos-customer-email" content="{{ customer.email }}">
+<meta name="loyaltyos-store-code" content="{{ store.code }}">

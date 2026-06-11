@@ -6,5 +6,7 @@ export default defineConfig({
     include: ['tests/**/*.test.ts'],
     env: { DATABASE_URL: 'file:./test.db' },
     globalSetup: './tests/setup/global-setup.ts',
+    // Test files share one SQLite test DB; parallel workers would race on it.
+    fileParallelism: false,
   },
 })

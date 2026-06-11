@@ -58,6 +58,8 @@ describe('GET /oauth/callback', () => {
           status: 201,
         }),
       )
+      // 4) POST /jsapps.json (widget injection)
+      .mockResolvedValueOnce(new Response(JSON.stringify({ app: { id: 9 } }), { status: 201 }))
 
     const app = buildServer({ oauth: deps(fetchFn as unknown as typeof fetch) })
 
@@ -79,7 +81,57 @@ describe('GET /oauth/callback', () => {
       hook: { event: 'order_paid', url: 'https://x.dev/webhooks/jumpseller' },
     })
 
+    // fourth fetch call injected the storefront widget
+    const jsappCall = fetchFn.mock.calls[3]
+    expect(jsappCall[0]).toBe('https://api.jumpseller.com/v1/jsapps.json')
+    expect(JSON.parse((jsappCall[1] as { body: string }).body)).toEqual({
+      app: { url: 'https://x.dev/widget.js', template: 'layout', element: 'body' },
+    })
+
     await prisma.install.delete({ where: { storeId: 'store_cb' } })
+    await app.close()
+  })
+
+  it('returns 502 when the token exchange fails (nothing persisted)', async () => {
+    const fetchFn = vi.fn().mockResolvedValue(new Response('nope', { status: 401 }))
+    const app = buildServer({ oauth: deps(fetchFn as unknown as typeof fetch) })
+    const install = await app.inject({ method: 'GET', url: '/install' })
+    const state = new URL(install.headers.location as string).searchParams.get('state') as string
+    const res = await app.inject({ method: 'GET', url: `/oauth/callback?code=bad&state=${state}` })
+    expect(res.statusCode).toBe(502)
+    expect(res.json()).toEqual({ error: 'install_failed' })
+    await app.close()
+  })
+
+  it('keeps the install and shows a notice when hook registration fails', async () => {
+    const fetchFn = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({ access_token: 'at2', refresh_token: 'rt2', expires_in: 3600, created_at: 1 }),
+          { status: 200 },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({ store: { code: 'store_hookfail', name: 'S', url: 'https://s.jumpseller.com', currency: 'CLP' } }),
+          { status: 200 },
+        ),
+      )
+      .mockResolvedValueOnce(new Response('exists', { status: 422 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ app: { id: 9 } }), { status: 201 }))
+
+    const app = buildServer({ oauth: deps(fetchFn as unknown as typeof fetch) })
+    const install = await app.inject({ method: 'GET', url: '/install' })
+    const state = new URL(install.headers.location as string).searchParams.get('state') as string
+    const res = await app.inject({ method: 'GET', url: `/oauth/callback?code=ok&state=${state}` })
+
+    expect(res.statusCode).toBe(200)
+    expect(res.body).toContain('could not be registered')
+    const row = await prisma.install.findUnique({ where: { storeId: 'store_hookfail' } })
+    expect(row).not.toBeNull() // install survived the hook failure
+
+    await prisma.install.delete({ where: { storeId: 'store_hookfail' } })
     await app.close()
   })
 })
