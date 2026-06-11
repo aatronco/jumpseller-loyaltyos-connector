@@ -27,7 +27,8 @@ function orderBody(id = 1026): string {
       id,
       status: 'Paid',
       currency: 'CLP',
-      total: 25990,
+      subtotal: 25990, // merchandise value — what earns points
+      total: 29990, // includes shipping; must NOT be used for earning
       customer: { id: 777, email: 'cliente@x.com' },
     },
   })

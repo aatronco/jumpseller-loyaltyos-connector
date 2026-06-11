@@ -14,6 +14,10 @@ const orderPaidSchema = z.object({
   order: z.object({
     id: z.coerce.number(),
     currency: z.string().min(1),
+    // Points are earned on the merchandise value only: subtotal excludes
+    // shipping (and is post-discount). total kept as fallback for payloads
+    // that omit subtotal.
+    subtotal: z.coerce.number().optional(),
     total: z.coerce.number(),
     customer: z.object({
       id: z.coerce.string(),
@@ -80,7 +84,7 @@ export async function webhookRoutes(server: FastifyInstance, deps: WebhookRoutes
       )
       await deps.loyalty.recordPurchase({
         memberId,
-        amount: order.total,
+        amount: order.subtotal ?? order.total,
         currency: order.currency,
         orderId: String(order.id),
         idempotencyKey: `${storeId}:${eventId}`,
