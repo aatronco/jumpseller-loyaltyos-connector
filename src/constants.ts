@@ -1,0 +1,1 @@
+export const DEFAULT_CONVERSION_RATE = 1000

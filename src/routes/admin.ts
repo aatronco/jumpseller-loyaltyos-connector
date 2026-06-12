@@ -2,13 +2,13 @@ import type { FastifyInstance, FastifyReply } from 'fastify'
 import { z } from 'zod'
 import { prisma } from '../db.js'
 import type { LoyaltyOsClient } from '../loyaltyos/client.js'
+import { DEFAULT_CONVERSION_RATE } from '../constants.js'
 
 export interface AdminRoutesDeps {
   loyalty: LoyaltyOsClient
   appUrl: string
 }
 
-const DEFAULT_CONVERSION_RATE = 1000
 const REWARD_STOCK = 9999
 
 // Returns the storeId when the install exists; otherwise sends the error
@@ -27,7 +27,7 @@ async function requireInstall(store: string | undefined, reply: FastifyReply): P
 }
 
 const storeQuerySchema = z.object({ store: z.string().min(1).optional() })
-const configBodySchema = z.object({ conversionRate: z.number().positive() })
+const configBodySchema = z.object({ conversionRate: z.number().int().min(1) })
 const rewardBodySchema = z.object({
   name: z.string().min(1),
   couponValue: z.number().positive(),

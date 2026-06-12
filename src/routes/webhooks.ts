@@ -4,6 +4,7 @@ import { verifyWebhookSignature } from '../jumpseller/webhook-signature.js'
 import { getOrCreateLoyaltyMember } from '../members.js'
 import { prisma } from '../db.js'
 import type { LoyaltyOsClient } from '../loyaltyos/client.js'
+import { DEFAULT_CONVERSION_RATE } from '../constants.js'
 
 export interface WebhookRoutesDeps {
   webhookSecret: string
@@ -84,7 +85,7 @@ export async function webhookRoutes(server: FastifyInstance, deps: WebhookRoutes
       )
       // Load per-store conversion rate (CLP per point); default 1000 if not configured.
       const cfg = await prisma.storeConfig.findUnique({ where: { storeId } })
-      const conversionRate = cfg?.conversionRate ?? 1000
+      const conversionRate = cfg?.conversionRate ?? DEFAULT_CONVERSION_RATE
       const clp = order.subtotal ?? order.total
       const points = Math.floor(clp / conversionRate)
       await deps.loyalty.recordPurchase({

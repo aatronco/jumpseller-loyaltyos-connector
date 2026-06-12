@@ -175,6 +175,37 @@ describe('PATCH /admin/rewards/:id', () => {
     expect(loyalty.updateReward).toHaveBeenCalledWith('r1', expect.objectContaining({ name: 'New name', pointsCost: 200 }))
     await app.close()
   })
+
+  it('maps couponValue to description JSON when updating discount amount', async () => {
+    await seedInstall()
+    const loyalty = stubLoyalty()
+    const app = appWith(loyalty)
+    const res = await app.inject({
+      method: 'PATCH',
+      url: `/admin/rewards/r1?store=${STORE}`,
+      payload: { couponValue: 3000 },
+      headers: { 'content-type': 'application/json' },
+    })
+    expect(res.statusCode).toBe(200)
+    expect(loyalty.updateReward).toHaveBeenCalledWith(
+      'r1',
+      expect.objectContaining({ description: JSON.stringify({ couponType: 'fixed', couponValue: 3000 }) }),
+    )
+    await app.close()
+  })
+
+  it('returns 400 for an empty patch body', async () => {
+    await seedInstall()
+    const app = appWith(stubLoyalty())
+    const res = await app.inject({
+      method: 'PATCH',
+      url: `/admin/rewards/r1?store=${STORE}`,
+      payload: {},
+      headers: { 'content-type': 'application/json' },
+    })
+    expect(res.statusCode).toBe(400)
+    await app.close()
+  })
 })
 
 describe('DELETE /admin/rewards/:id', () => {
