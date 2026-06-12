@@ -82,9 +82,14 @@ export async function webhookRoutes(server: FastifyInstance, deps: WebhookRoutes
         { id: order.customer.id, email: order.customer.email },
         deps.loyalty,
       )
+      // Load per-store conversion rate (CLP per point); default 1000 if not configured.
+      const cfg = await prisma.storeConfig.findUnique({ where: { storeId } })
+      const conversionRate = cfg?.conversionRate ?? 1000
+      const clp = order.subtotal ?? order.total
+      const points = Math.floor(clp / conversionRate)
       await deps.loyalty.recordPurchase({
         memberId,
-        amount: order.subtotal ?? order.total,
+        amount: points,
         currency: order.currency,
         orderId: String(order.id),
         idempotencyKey: `${storeId}:${eventId}`,

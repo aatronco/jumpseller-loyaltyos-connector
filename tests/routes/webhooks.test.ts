@@ -15,6 +15,7 @@ beforeEach(async () => {
   await prisma.processedWebhook.deleteMany({ where: { storeId: STORE } })
   await prisma.memberMap.deleteMany({ where: { storeId: STORE } })
   await prisma.deadLetter.deleteMany({ where: { storeId: STORE } })
+  await prisma.storeConfig.deleteMany({ where: { storeId: STORE } })
 })
 
 function sign(body: string, secret = SECRET): string {
@@ -105,7 +106,7 @@ describe('POST /webhooks/jumpseller', () => {
     expect(loyalty.ensureMember).toHaveBeenCalledTimes(1)
     expect(loyalty.recordPurchase).toHaveBeenCalledWith({
       memberId: 'loy_777',
-      amount: 25990,
+      amount: 25, // points = Math.floor(25990 / 1000)
       currency: 'CLP',
       orderId: '1026',
       idempotencyKey: `${STORE}:order_paid:1026`,
