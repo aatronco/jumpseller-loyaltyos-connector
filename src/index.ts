@@ -41,6 +41,10 @@ const app = buildServer({
     },
     encryptionKey: config.TOKEN_ENCRYPTION_KEY,
   },
+  admin: {
+    loyalty,
+    appUrl: config.APP_URL,
+  },
 })
 
 app

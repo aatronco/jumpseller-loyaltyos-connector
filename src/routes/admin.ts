@@ -237,7 +237,7 @@ function adminHtml(appUrl: string): string {
         load()
       })
       .catch(function () {
-        qs('form-error').textContent = 'Error eliminando recompensa.'
+        qs('config-error').textContent = 'Error eliminando recompensa.'
       })
   }
 
@@ -336,6 +336,9 @@ export async function adminRoutes(server: FastifyInstance, deps: AdminRoutesDeps
     if (parsed.data.pointsCost !== undefined) update.pointsCost = parsed.data.pointsCost
     if (parsed.data.couponValue !== undefined) {
       update.description = JSON.stringify({ couponType: 'fixed', couponValue: parsed.data.couponValue })
+    }
+    if (Object.keys(update).length === 0) {
+      return reply.code(400).send({ error: 'empty_patch' })
     }
     return deps.loyalty.updateReward(id, update)
   })
