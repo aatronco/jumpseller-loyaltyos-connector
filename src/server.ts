@@ -4,12 +4,14 @@ import { oauthRoutes, type OAuthRoutesDeps } from './routes/oauth.js'
 import { webhookRoutes, type WebhookRoutesDeps } from './routes/webhooks.js'
 import { widgetRoutes, type WidgetRoutesDeps } from './routes/widget.js'
 import { redeemRoutes, type RedeemRoutesDeps } from './routes/redeem.js'
+import { adminRoutes, type AdminRoutesDeps } from './routes/admin.js'
 
 export interface ServerOptions {
   oauth?: OAuthRoutesDeps
   webhooks?: WebhookRoutesDeps
   widget?: WidgetRoutesDeps
   redeem?: RedeemRoutesDeps
+  admin?: AdminRoutesDeps
 }
 
 export function buildServer(opts: ServerOptions = {}): FastifyInstance {
@@ -26,6 +28,9 @@ export function buildServer(opts: ServerOptions = {}): FastifyInstance {
   }
   if (opts.redeem) {
     app.register(redeemRoutes, opts.redeem)
+  }
+  if (opts.admin) {
+    app.register(adminRoutes, opts.admin)
   }
   return app
 }
