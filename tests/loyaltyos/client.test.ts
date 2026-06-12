@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { LoyaltyOsClient } from '../../src/loyaltyos/client.js'
+import { LoyaltyOsClient, type Reward } from '../../src/loyaltyos/client.js'
 
 const cfg = { apiUrl: 'http://localhost:3002', apiKey: 'dev-key', programId: 'prog_dev' }
 
@@ -93,5 +93,58 @@ describe('LoyaltyOsClient', () => {
     const fetchFn = vi.fn().mockResolvedValue(new Response('boom', { status: 500 }))
     const client = new LoyaltyOsClient(cfg, fetchFn as unknown as typeof fetch)
     await expect(client.findMemberByEmail('a@b.c')).rejects.toThrow(/500/)
+  })
+
+  describe('admin rewards', () => {
+    it('createReward posts to /admin/rewards and returns the reward', async () => {
+      const reward: Reward = { id: 'r1', name: 'Café gratis', isActive: true, pointsCost: 300, stock: 9999, description: '{"couponType":"fixed","couponValue":500}' }
+      const fetchFn = vi.fn().mockResolvedValue(jsonResponse({ data: reward }, 201))
+      const client = new LoyaltyOsClient(cfg, fetchFn as unknown as typeof fetch)
+
+      const result = await client.createReward({ name: 'Café gratis', description: '{"couponType":"fixed","couponValue":500}', pointsCost: 300, stock: 9999 })
+
+      expect(fetchFn).toHaveBeenCalledWith(
+        'http://localhost:3002/admin/rewards',
+        expect.objectContaining({ method: 'POST', body: JSON.stringify({ name: 'Café gratis', description: '{"couponType":"fixed","couponValue":500}', pointsCost: 300, stock: 9999 }) }),
+      )
+      expect(result).toEqual(reward)
+    })
+
+    it('updateReward patches /admin/rewards/:id', async () => {
+      const updated: Reward = { id: 'r1', name: 'Café grande', isActive: true, pointsCost: 400, stock: 9999, description: null }
+      const fetchFn = vi.fn().mockResolvedValue(jsonResponse({ data: updated }))
+      const client = new LoyaltyOsClient(cfg, fetchFn as unknown as typeof fetch)
+
+      const result = await client.updateReward('r1', { name: 'Café grande', pointsCost: 400 })
+
+      expect(fetchFn).toHaveBeenCalledWith(
+        'http://localhost:3002/admin/rewards/r1',
+        expect.objectContaining({ method: 'PATCH', body: JSON.stringify({ name: 'Café grande', pointsCost: 400 }) }),
+      )
+      expect(result).toEqual(updated)
+    })
+
+    it('deleteReward sends DELETE to /admin/rewards/:id', async () => {
+      const fetchFn = vi.fn().mockResolvedValue(new Response(null, { status: 204 }))
+      const client = new LoyaltyOsClient(cfg, fetchFn as unknown as typeof fetch)
+
+      await client.deleteReward('r1')
+
+      expect(fetchFn).toHaveBeenCalledWith(
+        'http://localhost:3002/admin/rewards/r1',
+        expect.objectContaining({ method: 'DELETE' }),
+      )
+    })
+
+    it('listAllRewards fetches /admin/rewards', async () => {
+      const rewards: Reward[] = [{ id: 'r1', name: 'Café gratis', isActive: true, pointsCost: 300, stock: 9999, description: null }]
+      const fetchFn = vi.fn().mockResolvedValue(jsonResponse({ data: { items: rewards } }))
+      const client = new LoyaltyOsClient(cfg, fetchFn as unknown as typeof fetch)
+
+      const result = await client.listAllRewards()
+
+      expect(fetchFn).toHaveBeenCalledWith('http://localhost:3002/admin/rewards', expect.objectContaining({ method: 'GET' }))
+      expect(result).toEqual(rewards)
+    })
   })
 })
