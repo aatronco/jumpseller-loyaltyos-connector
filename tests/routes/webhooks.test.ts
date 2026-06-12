@@ -149,6 +149,18 @@ describe('POST /webhooks/jumpseller', () => {
     await app.close()
   })
 
+  it('uses the store-configured conversion rate when one exists', async () => {
+    await prisma.storeConfig.create({ data: { storeId: STORE, conversionRate: 500 } })
+    const loyalty = stubLoyalty()
+    const app = appWith(loyalty)
+    const res = await inject(app, orderBody(3000))
+    expect(res.statusCode).toBe(200)
+    expect(loyalty.recordPurchase).toHaveBeenCalledWith(
+      expect.objectContaining({ amount: 51 }), // Math.floor(25990 / 500)
+    )
+    await app.close()
+  })
+
   it('does not break normal JSON parsing on other routes (parser is scoped)', async () => {
     const loyalty = stubLoyalty()
     const app = appWith(loyalty)
