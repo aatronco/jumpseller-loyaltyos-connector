@@ -55,3 +55,9 @@ model DeadLetter {
   attempts  Int      @default(0)
   createdAt DateTime @default(now())
 }
+
+model StoreConfig {
+  storeId        String   @id
+  conversionRate Float    @default(1000)
+  updatedAt      DateTime @updatedAt
+}
