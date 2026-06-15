@@ -115,7 +115,7 @@ function adminHtml(appUrl: string): string {
 
 <script>
 (function () {
-  var API = '${appUrl}'
+  var API = window.location.origin
   var params = new URLSearchParams(window.location.search)
   var store = params.get('store') || ''
   var editingId = null

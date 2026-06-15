@@ -132,7 +132,7 @@ export class LoyaltyOsClient {
     pointsCost: number
     stock: number
   }): Promise<Reward> {
-    const json = await this.request<{ data: Reward }>('POST', '/admin/rewards', { body: input })
+    const json = await this.request<{ data: Reward }>('POST', '/api/v1/admin/rewards', { body: input })
     return json.data
   }
 
@@ -142,18 +142,18 @@ export class LoyaltyOsClient {
   ): Promise<Reward> {
     const json = await this.request<{ data: Reward }>(
       'PATCH',
-      `/admin/rewards/${encodeURIComponent(id)}`,
+      `/api/v1/admin/rewards/${encodeURIComponent(id)}`,
       { body: input },
     )
     return json.data
   }
 
   async deleteReward(id: string): Promise<void> {
-    await this.request('DELETE', `/admin/rewards/${encodeURIComponent(id)}`)
+    await this.request('DELETE', `/api/v1/admin/rewards/${encodeURIComponent(id)}`)
   }
 
   async listAllRewards(): Promise<Reward[]> {
-    const json = await this.request<{ data: { items: Reward[] } }>('GET', '/admin/rewards')
+    const json = await this.request<{ data: { items: Reward[] } }>('GET', '/api/v1/admin/rewards')
     return json.data.items
   }
 }
