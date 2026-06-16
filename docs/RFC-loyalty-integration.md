@@ -1,68 +1,68 @@
-# RFC: Integración de Programa de Fidelización para Tiendas Jumpseller
+# RFC: Loyalty Program Integration for Jumpseller Stores
 
-**Estado:** Propuesta  
-**Autor:** Producto — Alejandro Troncoso  
-**Revisores:** Equipo de Apps  
-**Fecha:** 2026-06-16  
-**Repositorio de referencia (PoC):** `aatronco/jumpseller-loyaltyos-connector`
-
----
-
-## Tabla de Contenidos
-
-1. [Resumen Ejecutivo](#1-resumen-ejecutivo)
-2. [Caso de Negocio](#2-caso-de-negocio)
-3. [Solución Propuesta](#3-solución-propuesta)
-4. [Evidencia de Validación](#4-evidencia-de-validación)
-5. [Especificación de Integración](#5-especificación-de-integración)
-6. [Requisitos No Funcionales](#6-requisitos-no-funcionales)
-7. [Criterios de Aceptación](#7-criterios-de-aceptación)
-8. [Fases de Entrega](#8-fases-de-entrega)
-9. [Lo que NO se prescribe](#9-lo-que-no-se-prescribe)
-10. [Apéndice](#10-apéndice)
+**Status:** Proposed  
+**Author:** Product — Alejandro Troncoso  
+**Reviewers:** Apps Team  
+**Date:** 2026-06-16  
+**Reference repository (PoC):** `aatronco/jumpseller-loyaltyos-connector`
 
 ---
 
-## 1. Resumen Ejecutivo
+## Table of Contents
 
-Los programas de fidelización son uno de los mecanismos más efectivos para aumentar la frecuencia de compra y el valor de vida del cliente (LTV). Sin embargo, hoy ningún merchant de Jumpseller puede activar un programa de puntos sin recurrir a soluciones externas desconectadas de la plataforma, lo que genera fricción operacional y abandono del intent.
-
-Este documento especifica una **Jumpseller App** que conecta cualquier tienda Jumpseller a un motor de fidelización ([LoyaltyOS](https://github.com/loyalty-os/loyaltyos)), cubriendo el ciclo completo: acumulación de puntos por compra, gestión de recompensas por el merchant, y canje de descuentos por el cliente en el checkout.
-
-La integración fue validada en un prototipo funcional end-to-end. Este RFC entrega al equipo de Apps el **contrato técnico de integración** que debe cumplir la implementación de producción, sin prescribir la arquitectura interna ni la infraestructura de hosting.
+1. [Executive Summary](#1-executive-summary)
+2. [Business Case](#2-business-case)
+3. [Proposed Solution](#3-proposed-solution)
+4. [Validation Evidence](#4-validation-evidence)
+5. [Integration Specification](#5-integration-specification)
+6. [Non-Functional Requirements](#6-non-functional-requirements)
+7. [Acceptance Criteria](#7-acceptance-criteria)
+8. [Delivery Phases](#8-delivery-phases)
+9. [What Is NOT Prescribed](#9-what-is-not-prescribed)
+10. [Appendix](#10-appendix)
 
 ---
 
-## 2. Caso de Negocio
+## 1. Executive Summary
 
-### 2.1 El Problema
+Loyalty programs are one of the most effective mechanisms for increasing purchase frequency and customer lifetime value (LTV). Today, no Jumpseller merchant can activate a points program without resorting to disconnected external solutions, creating operational friction and intent abandonment.
 
-| Dimensión | Situación actual |
+This document specifies a **Jumpseller App** that connects any Jumpseller store to a loyalty engine ([LoyaltyOS](https://github.com/loyalty-os/loyaltyos)), covering the full cycle: points accrual on purchase, reward management by the merchant, and discount redemption by the customer at checkout.
+
+The integration was validated in a functional end-to-end prototype. This RFC delivers to the Apps team the **technical integration contract** that the production implementation must satisfy, without prescribing internal architecture or hosting infrastructure.
+
+---
+
+## 2. Business Case
+
+### 2.1 The Problem
+
+| Dimension | Current situation |
 |---|---|
-| **Retención** | Los merchants Jumpseller no tienen herramienta nativa de puntos/fidelización |
-| **Experiencia del cliente** | El comprador no tiene razones de marca para volver frente a precios equivalentes en otro sitio |
-| **Operación del merchant** | Soluciones externas (Smile.io, Yotpo) son caras para el segmento SMB y no están integradas al checkout Jumpseller |
-| **Ecosistema Jumpseller** | La App Store no ofrece ninguna solución de loyalty activa |
+| **Retention** | Jumpseller merchants have no native points/loyalty tool |
+| **Customer experience** | Shoppers have no brand-specific reason to return when prices are equivalent elsewhere |
+| **Merchant operations** | External solutions (Smile.io, Yotpo) are expensive for the SMB segment and not integrated into the Jumpseller checkout |
+| **Jumpseller ecosystem** | The App Store offers no active loyalty solution |
 
-### 2.2 La Oportunidad
+### 2.2 The Opportunity
 
-Un programa de puntos bien integrado impacta directamente tres métricas clave:
+A well-integrated points program directly impacts three key metrics:
 
-- **Tasa de recompra**: un cliente con puntos acumulados tiene un incentivo económico concreto para volver antes que el punto expire o que la competencia lo atraiga.
-- **AOV (Average Order Value)**: los clientes que están cerca de un umbral de canje tienden a agregar más items al carrito.
-- **Churn de merchants**: ofrecer una herramienta de fidelización nativa aumenta el costo de salida de la plataforma para el merchant.
+- **Repurchase rate**: a customer with accrued points has a concrete economic incentive to return before the points expire or a competitor wins them over.
+- **AOV (Average Order Value)**: customers who are close to a redemption threshold tend to add more items to their cart.
+- **Merchant churn**: offering a native loyalty tool increases the platform exit cost for merchants.
 
-### 2.3 Por qué este approach
+### 2.3 Why This Approach
 
-En lugar de construir el motor de fidelización desde cero, esta propuesta se apoya en **LoyaltyOS**, un motor open-source auto-hospedable que maneja la lógica de puntos, eventos, recompensas y canjes. Jumpseller construye únicamente el **conector**: la capa que traduce eventos Jumpseller (órdenes pagadas, instalaciones de app) en operaciones LoyaltyOS, y expone al merchant un panel de configuración embebido.
+Rather than building a loyalty engine from scratch, this proposal relies on **LoyaltyOS**, a self-hostable open-source engine that handles points logic, events, rewards, and redemptions. Jumpseller only builds the **connector**: the layer that translates Jumpseller events (paid orders, app installs) into LoyaltyOS operations, and exposes a configuration panel to the merchant.
 
-Esto reduce el tiempo de desarrollo de meses a semanas y elimina la deuda de mantener la lógica de fidelización internamente.
+This reduces development time from months to weeks and eliminates the debt of maintaining loyalty logic internally.
 
 ---
 
-## 3. Solución Propuesta
+## 3. Proposed Solution
 
-### 3.1 Visión del sistema
+### 3.1 System Overview
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
@@ -71,96 +71,96 @@ Esto reduce el tiempo de desarrollo de meses a semanas y elimina la deuda de man
 │  ┌──────────────┐   OAuth 2.0    ┌────────────────────────────────┐ │
 │  │  Admin Panel │ ◄────────────► │                                │ │
 │  │  (merchant)  │                │    LoyaltyOS Connector App     │ │
-│  └──────┬───────┘   Webhooks     │    (esta especificación)       │ │
+│  └──────┬───────┘   Webhooks     │    (this specification)        │ │
 │         │          ────────────► │                                │ │
 │  ┌──────▼───────┐                └──────────────┬─────────────────┘ │
 │  │  Storefront  │   Widget JS                   │                   │
-│  │  (comprador) │ ◄─────────────────────────────┘  API REST         │
+│  │  (shopper)   │ ◄─────────────────────────────┘  REST API         │
 │  └──────────────┘                                      │            │
 └────────────────────────────────────────────────────────┼────────────┘
                                                          ▼
                                               ┌──────────────────────┐
                                               │      LoyaltyOS       │
-                                              │  (motor de puntos,   │
-                                              │   hospedado por      │
+                                              │  (points engine,     │
+                                              │   hosted by          │
                                               │   Jumpseller)        │
                                               └──────────────────────┘
 ```
 
-### 3.2 Alcance de esta especificación
+### 3.2 Scope of This Specification
 
-| # | Funcionalidad | Descripción |
+| # | Feature | Description |
 |---|---|---|
-| F-01 | **Instalación OAuth** | El merchant instala la app y autoriza acceso a su tienda |
-| F-02 | **Acumulación de puntos** | Por cada orden pagada, el comprador acumula puntos según la tasa configurada |
-| F-03 | **Panel de administración** | El merchant configura tasa de conversión y gestiona el catálogo de recompensas desde el admin Jumpseller |
-| F-04 | **Widget de storefront** | El comprador ve su balance de puntos y las recompensas disponibles en la tienda |
-| F-05 | **Canje de recompensas** | El comprador canjea puntos por un cupón de descuento aplicable al checkout |
-| F-06 | **Desinstalación** | Al desinstalar la app, los datos de la instalación se limpian correctamente |
+| F-01 | **OAuth Install** | The merchant installs the app and authorizes access to their store |
+| F-02 | **Points Accrual** | For each paid order, the shopper earns points according to the configured rate |
+| F-03 | **Admin Panel** | The merchant configures the conversion rate and manages the rewards catalog from the Jumpseller admin |
+| F-04 | **Storefront Widget** | The shopper sees their point balance and available rewards in the store |
+| F-05 | **Reward Redemption** | The shopper redeems points for a discount coupon applicable at checkout |
+| F-06 | **Uninstall** | When the app is uninstalled, the install data is correctly cleaned up |
 
-### 3.3 Fuera de alcance (v1)
+### 3.3 Out of Scope (v1)
 
-- Acumulación de puntos por acciones no-transaccionales (referidos, reseñas, cumpleaños)
-- Programa de niveles/tiers (Bronze, Silver, Gold)
-- Multi-moneda dentro de un mismo programa
-- White-labeling del widget por parte del merchant
+- Points accrual for non-transactional actions (referrals, reviews, birthdays)
+- Tier/level programs (Bronze, Silver, Gold)
+- Multi-currency within a single program
+- Widget white-labeling by the merchant
 
 ---
 
-## 4. Evidencia de Validación
+## 4. Validation Evidence
 
-El prototipo `aatronco/jumpseller-loyaltyos-connector` implementa todos los flujos de F-01 a F-06 en una integración funcional contra la tienda `alejandrotest.jumpseller.com` y una instancia local de LoyaltyOS.
+The prototype `aatronco/jumpseller-loyaltyos-connector` implements all F-01 through F-06 flows in a working integration against the `alejandrotest.jumpseller.com` store and a local LoyaltyOS instance.
 
-**Lo que fue validado en producción:**
+**What was validated in production:**
 
-- Instalación OAuth completa con registro de webhooks automático
-- Acumulación de puntos al recibir el webhook `order_paid`
-- Panel de admin embebido en el App Store de Jumpseller (nueva pestaña) con autenticación por HMAC capability-URL
-- Widget JS inyectado vía JS App mostrando balance y recompensas en tiempo real
-- Canje end-to-end: el comprador canjea puntos → LoyaltyOS descuenta el balance → Jumpseller crea el cupón de descuento → se retorna el código al widget
+- Full OAuth install with automatic webhook registration
+- Points accrual on receiving the `order_paid` webhook
+- Admin panel embedded in the Jumpseller App Store (new tab) with HMAC capability-URL authentication
+- JS widget injected via JS App showing real-time balance and rewards in the storefront
+- End-to-end redemption: shopper redeems points → LoyaltyOS deducts balance → Jumpseller creates discount coupon → code returned to widget
 
-**Limitaciones conocidas del PoC (a resolver en producción):**
+**Known limitations of the PoC (to be resolved in production):**
 
-| Limitación del PoC | Expectativa de producción |
+| PoC Limitation | Production Expectation |
 |---|---|
-| LoyaltyOS corre en Docker local | LoyaltyOS hospedado y gestionado por infraestructura Jumpseller |
-| Tunnel efímero (Cloudflare) para HTTPS | Dominio estable con TLS (Heroku/AWS/etc.) |
-| SQLite como base de datos | Postgres u otro RDBMS gestionado |
-| Token de admin estático (HMAC sin expiración) | Sesión firmada con expiración o cookie HttpOnly |
-| Un solo LoyaltyOS compartido entre todas las tiendas | Confirmar si el modelo es multi-tenant o una instancia por merchant |
+| LoyaltyOS runs in local Docker | LoyaltyOS hosted and managed by Jumpseller infrastructure |
+| Ephemeral tunnel (Cloudflare) for HTTPS | Stable domain with TLS (Heroku/AWS/etc.) |
+| SQLite as database | Managed Postgres or equivalent RDBMS |
+| Static admin token (HMAC without expiry) | Signed session with expiry or HttpOnly cookie |
+| Single shared LoyaltyOS for all stores | Confirm whether the model is multi-tenant or one instance per merchant |
 
 ---
 
-## 5. Especificación de Integración
+## 5. Integration Specification
 
-Esta sección define el **contrato observable** que la implementación de producción DEBE cumplir. El cómo interno queda a criterio del equipo de Apps.
+This section defines the **observable contract** that the production implementation MUST satisfy. Internal implementation details are left to the Apps team's discretion.
 
 ---
 
-### 5.1 OAuth 2.0 — Instalación de la App
+### 5.1 OAuth 2.0 — App Installation
 
-#### Flujo
+#### Flow
 
 ```
-Merchant hace clic en "Instalar" en la App Store
+Merchant clicks "Install" in the App Store
     │
     ▼
 GET /oauth/install?store={storeId}
-    │  El conector construye la URL de autorización Jumpseller
+    │  Connector builds the Jumpseller authorization URL
     ▼
 302 → https://accounts.jumpseller.com/oauth/authorize?...
-    │  Merchant aprueba permisos
+    │  Merchant approves permissions
     ▼
 GET /oauth/callback?code={authCode}&state={csrfToken}
-    │  Conector intercambia code por access_token + refresh_token
-    │  Conector persiste la instalación en base de datos
-    │  Conector registra webhooks necesarios vía API Jumpseller
+    │  Connector exchanges code for access_token + refresh_token
+    │  Connector persists the installation in the database
+    │  Connector registers required webhooks via Jumpseller API
     ▼
 302 → {appUrl}/?store={storeId}&token={adminToken}
-    (panel de admin)
+    (admin panel)
 ```
 
-#### Scopes requeridos
+#### Required Scopes
 
 ```
 read_orders
@@ -171,29 +171,29 @@ write_hooks
 read_store
 ```
 
-#### Webhook que se auto-registra al instalar
+#### Webhook Auto-Registered at Install
 
-| Evento | URL destino |
+| Event | Target URL |
 |---|---|
 | `order_paid` | `{appUrl}/webhooks/order_paid` |
 
-#### Persistencia mínima por instalación
+#### Minimum Persistence per Installation
 
-| Campo | Tipo | Descripción |
+| Field | Type | Description |
 |---|---|---|
-| `storeId` | string (PK) | Identificador único de la tienda (slug) |
-| `storeUrl` | string | URL base de la tienda |
-| `accessToken` | string (cifrado) | Token OAuth de acceso |
-| `refreshToken` | string (cifrado) | Token OAuth de refresco |
-| `tokenExpiresAt` | timestamp | Expiración del access token |
-| `scopes` | string | Scopes autorizados |
-| `createdAt` | timestamp | Fecha de instalación |
+| `storeId` | string (PK) | Unique store identifier (slug) |
+| `storeUrl` | string | Store base URL |
+| `accessToken` | string (encrypted) | OAuth access token |
+| `refreshToken` | string (encrypted) | OAuth refresh token |
+| `tokenExpiresAt` | timestamp | Access token expiry |
+| `scopes` | string | Authorized scopes |
+| `createdAt` | timestamp | Installation date |
 
-> **Requisito de seguridad:** `accessToken` y `refreshToken` DEBEN almacenarse cifrados en reposo. En el PoC se usa AES-256-GCM con `TOKEN_ENCRYPTION_KEY`.
+> **Security requirement:** `accessToken` and `refreshToken` MUST be stored encrypted at rest. The PoC uses AES-256-GCM with `TOKEN_ENCRYPTION_KEY`.
 
 ---
 
-### 5.2 Webhook — Acumulación de Puntos
+### 5.2 Webhook — Points Accrual
 
 #### Endpoint
 
@@ -201,77 +201,77 @@ read_store
 POST /webhooks/order_paid
 ```
 
-#### Verificación de firma
+#### Signature Verification
 
-Jumpseller firma el payload con HMAC-SHA256. El conector DEBE verificar la firma antes de procesar:
+Jumpseller signs the payload with HMAC-SHA256. The connector MUST verify the signature before processing:
 
 ```
 X-Jumpseller-Hmac-SHA256: {base64(HMAC-SHA256(webhookSecret, rawBody))}
 ```
 
-Rechazar con `401` si la firma no coincide.
+Reject with `401` if the signature does not match.
 
-#### Lógica de acumulación
+#### Accrual Logic
 
 ```
-puntosGanados = floor(order.total / conversionRate)
+pointsEarned = floor(order.total / conversionRate)
 ```
 
-Donde `conversionRate` es la tasa configurada por el merchant (defecto: 1 punto por cada 1000 CLP).
+Where `conversionRate` is the merchant-configured rate (default: 1 point per 1000 CLP).
 
-#### Idempotencia
+#### Idempotency
 
-Cada procesamiento de orden DEBE ser idempotente. La clave de idempotencia recomendada:
+Every order processing MUST be idempotent. Recommended idempotency key:
 
 ```
 {storeId}:order_paid:{orderId}
 ```
 
-Órdenes ya procesadas deben responder `200` sin duplicar puntos.
+Already-processed orders must respond `200` without duplicating points.
 
-#### Flujo interno
+#### Internal Flow
 
 ```
-1. Verificar firma HMAC → 401 si falla
-2. Buscar instalación por storeId → 404 si no existe
-3. Obtener o crear miembro LoyaltyOS por email del comprador
-4. Calcular puntos según conversionRate del merchant
-5. Registrar evento 'purchase' en LoyaltyOS con Idempotency-Key
-6. Responder 200
+1. Verify HMAC signature → 401 if failed
+2. Look up installation by storeId → 404 if not found
+3. Get or create LoyaltyOS member by shopper email
+4. Calculate points according to merchant's conversionRate
+5. Record 'purchase' event in LoyaltyOS with Idempotency-Key
+6. Respond 200
 ```
 
 ---
 
-### 5.3 Panel de Administración del Merchant
+### 5.3 Merchant Admin Panel
 
-#### Acceso
+#### Access
 
-El panel se abre desde Apps → Mis Apps → [nombre de la app] en el admin Jumpseller. El conector sirve una página HTML embebida o en nueva pestaña.
+The panel opens from Apps → My Apps → [app name] in the Jumpseller admin. The connector serves an HTML page embedded or in a new tab.
 
-#### URL de acceso
+#### Access URL
 
 ```
 GET /?store={storeId}&token={adminToken}
 ```
 
-`adminToken` = `HMAC-SHA256(ADMIN_TOKEN_SECRET, storeId)` en hex (256 bits). Se embebe en la App URL configurada en el registro de la app.
+`adminToken` = `HMAC-SHA256(ADMIN_TOKEN_SECRET, storeId)` in hex (256 bits). Embedded in the App URL configured in the app registration.
 
-> **Nota de seguridad:** El token es una capability URL estática. Para producción se recomienda elevar a JWT con expiración corta (`exp`) o sesión HttpOnly + SameSite=Strict.
+> **Security note:** The token is a static capability URL. For production it is recommended to upgrade to a JWT with a short expiry (`exp`) or an HttpOnly + SameSite=Strict session cookie.
 
-#### Funcionalidades expuestas
+#### Exposed Features
 
-**Tasa de conversión**
+**Conversion Rate**
 
 ```
 GET  /admin/config?store={storeId}
      → { conversionRate: number }
 
 PATCH /admin/config?store={storeId}
-     Body: { conversionRate: number }   // entero positivo
+     Body: { conversionRate: number }   // positive integer
      → { conversionRate: number }
 ```
 
-**Gestión de recompensas**
+**Reward Management**
 
 ```
 GET    /admin/rewards?store={storeId}
@@ -289,12 +289,12 @@ DELETE /admin/rewards/:id?store={storeId}
        → 204
 ```
 
-Todos los endpoints de admin requieren el header:
+All admin endpoints require the header:
 ```
 X-Admin-Token: {adminToken}
 ```
 
-#### Modelo Reward
+#### Reward Model
 
 ```ts
 interface Reward {
@@ -309,17 +309,17 @@ interface Reward {
 
 ---
 
-### 5.4 Widget de Storefront
+### 5.4 Storefront Widget
 
-El widget se inyecta en la tienda vía una **Jumpseller JS App**. La JS App ejecuta el siguiente snippet en el storefront:
+The widget is injected into the store via a **Jumpseller JS App**. The JS App executes the following snippet on the storefront:
 
 ```html
 <script src="{appUrl}/widget.js" async></script>
 ```
 
-El script se auto-inicializa cuando detecta `window.__jsloyalty` o un elemento con `data-loyalty-widget`.
+The script self-initializes when it detects `window.__jsloyalty` or an element with `data-loyalty-widget`.
 
-#### Endpoints que consume el widget
+#### Endpoints Consumed by the Widget
 
 ```
 GET /widget/balance?email={email}&store={storeId}&customerId={id}
@@ -333,20 +333,20 @@ POST /widget/redeem
      → { couponCode: string, pointsUsed: number, remainingPoints: number }
 ```
 
-#### Estados de error en `/widget/redeem`
+#### Error States for `/widget/redeem`
 
-| HTTP | Significado |
+| HTTP | Meaning |
 |---|---|
-| 402 | Puntos insuficientes |
-| 404 | Miembro o recompensa no encontrada |
-| 422 | LoyaltyOS rechazó el canje (stock agotado, recompensa inactiva) |
-| 502 | Error al crear el cupón en Jumpseller (canje ya registrado, no revertir) |
+| 402 | Insufficient points |
+| 404 | Member or reward not found |
+| 422 | LoyaltyOS rejected the redemption (out of stock, inactive reward) |
+| 502 | Error creating the coupon in Jumpseller (redemption already recorded — do not reverse) |
 
 ---
 
-### 5.5 Cupones de Descuento (Jumpseller Promotions API)
+### 5.5 Discount Coupons (Jumpseller Promotions API)
 
-Al canjear una recompensa, el conector DEBE crear un cupón en Jumpseller usando la API de Promotions:
+When redeeming a reward, the connector MUST create a coupon in Jumpseller using the Promotions API:
 
 ```
 POST /promotions.json
@@ -357,144 +357,144 @@ POST /promotions.json
     "status": "enabled",
     "discount": {couponValue},
     "usage_limit": 1,
-    "start_date": "{hoy}",
-    "end_date": "{hoy + 30 días}"
+    "start_date": "{today}",
+    "end_date": "{today + 30 days}"
   }
 }
 ```
 
-> **Gotcha conocido:** El campo `type` en la respuesta de Jumpseller devuelve `"percentage_off"` aunque se envíe `"fix"`. No confundir el campo de request con el de response. Documentado en el PoC.
+> **Known gotcha:** The `type` field in Jumpseller's response returns `"percentage_off"` even when `"fix"` is sent. Do not confuse the request field with the response field. Documented in the PoC.
 
 ---
 
-### 5.6 Desinstalación
+### 5.6 Uninstall
 
-Jumpseller envía un evento de desinstalación cuando el merchant elimina la app. El conector DEBE:
+Jumpseller sends an uninstall event when the merchant removes the app. The connector MUST:
 
-1. Eliminar el registro de instalación de la base de datos
-2. (Opcional v1) Notificar a LoyaltyOS para archivar el programa
+1. Delete the installation record from the database
+2. (Optional v1) Notify LoyaltyOS to archive the program
 
 ---
 
-### 5.7 Variables de Entorno Requeridas
+### 5.7 Required Environment Variables
 
-| Variable | Descripción | Validación |
+| Variable | Description | Validation |
 |---|---|---|
-| `APP_URL` | URL pública del conector | URL válida |
-| `JUMPSELLER_APP_ID` | Client ID de la app registrada | requerido |
-| `JUMPSELLER_APP_SECRET` | Client Secret de la app | requerido |
-| `JUMPSELLER_SCOPES` | Scopes OAuth | ver §5.1 |
-| `JUMPSELLER_WEBHOOK_SECRET` | Secreto para verificar firmas HMAC | requerido |
-| `ADMIN_TOKEN_SECRET` | Secreto independiente para tokens de admin | 64 hex chars (32 bytes) |
-| `TOKEN_ENCRYPTION_KEY` | Clave para cifrar tokens OAuth en BD | 64 hex chars (32 bytes) |
-| `LOYALTYOS_API_URL` | URL base de la instancia LoyaltyOS | URL válida |
-| `LOYALTYOS_API_KEY` | API key de LoyaltyOS | requerido |
-| `LOYALTYOS_PROGRAM_ID` | ID del programa en LoyaltyOS | requerido |
-| `DATABASE_URL` | Conexión a base de datos | requerido |
+| `APP_URL` | Public connector URL | Valid URL |
+| `JUMPSELLER_APP_ID` | Client ID of the registered app | required |
+| `JUMPSELLER_APP_SECRET` | Client Secret of the app | required |
+| `JUMPSELLER_SCOPES` | OAuth scopes | see §5.1 |
+| `JUMPSELLER_WEBHOOK_SECRET` | Secret for verifying HMAC signatures | required |
+| `ADMIN_TOKEN_SECRET` | Independent secret for admin tokens | 64 hex chars (32 bytes) |
+| `TOKEN_ENCRYPTION_KEY` | Key for encrypting OAuth tokens in DB | 64 hex chars (32 bytes) |
+| `LOYALTYOS_API_URL` | LoyaltyOS instance base URL | Valid URL |
+| `LOYALTYOS_API_KEY` | LoyaltyOS API key | required |
+| `LOYALTYOS_PROGRAM_ID` | Program ID in LoyaltyOS | required |
+| `DATABASE_URL` | Database connection string | required |
 
-> `JUMPSELLER_WEBHOOK_SECRET` y `ADMIN_TOKEN_SECRET` DEBEN ser valores independientes. Compartir la misma clave entre dominios de seguridad distintos invalida el aislamiento ante una eventual compromisión.
+> `JUMPSELLER_WEBHOOK_SECRET` and `ADMIN_TOKEN_SECRET` MUST be independent values. Sharing the same key across different security domains invalidates isolation in the event of a compromise.
 
 ---
 
-## 6. Requisitos No Funcionales
+## 6. Non-Functional Requirements
 
-| Requisito | Descripción |
+| Requirement | Description |
 |---|---|
-| **Idempotencia** | El procesamiento de cualquier webhook DEBE ser idempotente. Jumpseller puede entregar el mismo evento más de una vez. |
-| **Cifrado en reposo** | `accessToken` y `refreshToken` DEBEN almacenarse cifrados. |
-| **No exposición de secretos en logs** | El `token` de admin URL DEBE redactarse antes de escribir al log de acceso. |
-| **HTTPS obligatorio** | Todos los endpoints del conector DEBEN servirse sobre HTTPS. |
-| **Disponibilidad de webhooks** | El endpoint `/webhooks/order_paid` DEBE responder en < 5 s. Jumpseller considera el webhook fallido después de ese tiempo y reintenta. |
-| **Validación de entrada** | Todo body y query param de API DEBE validarse antes de procesarse. Rechazar con `400` ante esquemas inválidos. |
+| **Idempotency** | Processing of any webhook MUST be idempotent. Jumpseller may deliver the same event more than once. |
+| **Encryption at rest** | `accessToken` and `refreshToken` MUST be stored encrypted. |
+| **No secrets in logs** | The admin URL `token` MUST be redacted before writing to the access log. |
+| **HTTPS required** | All connector endpoints MUST be served over HTTPS. |
+| **Webhook availability** | The `/webhooks/order_paid` endpoint MUST respond in < 5 s. Jumpseller considers the webhook failed after that time and retries. |
+| **Input validation** | Every API body and query parameter MUST be validated before processing. Reject with `400` on invalid schemas. |
 
 ---
 
-## 7. Criterios de Aceptación
+## 7. Acceptance Criteria
 
-Una implementación se considera completa cuando:
+An implementation is considered complete when:
 
-- [ ] Un merchant puede instalar la app desde la App Store de Jumpseller sin intervención manual
-- [ ] Al completar una orden, el comprador acumula puntos automáticamente; la acumulación es idempotente
-- [ ] El merchant puede configurar la tasa de conversión desde el panel de admin sin salir de Jumpseller
-- [ ] El merchant puede crear, editar y eliminar recompensas desde el panel de admin
-- [ ] El comprador puede ver su balance de puntos en la tienda
-- [ ] El comprador puede canjear puntos por un cupón válido que funciona en el checkout
-- [ ] Al desinstalar la app, los datos de la instalación se eliminan
-- [ ] Todos los endpoints de admin retornan `403` cuando se invoca sin un token válido
-- [ ] El webhook retorna `401` si la firma HMAC no coincide
-- [ ] Los access/refresh tokens no aparecen en texto plano en la base de datos ni en los logs
-
----
-
-## 8. Fases de Entrega
-
-### Fase 1 — MVP (recomendada como primer hito)
-
-Flujos F-01, F-02, F-03 y F-06. El merchant puede instalar, ver el panel de admin y acumular puntos. Sin widget de storefront.
-
-**Definición de done:** Un merchant real puede instalar la app, generar una orden de prueba y verificar que los puntos se acumularon desde el panel de admin.
-
-### Fase 2 — Widget de storefront
-
-Flujos F-04 y F-05. El comprador puede ver sus puntos y canjearlos.
-
-**Definición de done:** Un comprador en la tienda puede ver su balance, seleccionar una recompensa, obtener un código de cupón y aplicarlo en el checkout.
-
-### Fase 3 — Estabilización y observabilidad
-
-- Manejo de refresh de tokens OAuth expirados
-- Alertas si el webhook falla de forma sostenida
-- Dashboard básico de métricas (instalaciones activas, puntos emitidos, canjes)
+- [ ] A merchant can install the app from the Jumpseller App Store without manual intervention
+- [ ] When an order is completed, the shopper automatically earns points; accrual is idempotent
+- [ ] The merchant can configure the conversion rate from the admin panel without leaving Jumpseller
+- [ ] The merchant can create, edit, and delete rewards from the admin panel
+- [ ] The shopper can view their point balance in the store
+- [ ] The shopper can redeem points for a valid coupon that works at checkout
+- [ ] When the app is uninstalled, the installation data is deleted
+- [ ] All admin endpoints return `403` when invoked without a valid token
+- [ ] The webhook returns `401` if the HMAC signature does not match
+- [ ] Access/refresh tokens do not appear in plain text in the database or in logs
 
 ---
 
-## 9. Lo que NO se prescribe
+## 8. Delivery Phases
 
-Este RFC define el **qué** (el comportamiento observable) pero no el **cómo** (la implementación interna). Las siguientes decisiones quedan completamente a criterio del equipo de Apps:
+### Phase 1 — MVP (recommended as first milestone)
 
-- **Lenguaje y framework**: el PoC usa TypeScript + Fastify, pero cualquier stack es válido
-- **Infraestructura**: Heroku, AWS, Railway, Fly.io, o cualquier plataforma con HTTPS y PostgreSQL
-- **ORM / acceso a datos**: Prisma (usado en el PoC), Drizzle, raw SQL, o cualquier alternativa
-- **Estrategia de deploy**: CI/CD, Docker, buildpacks, etc.
-- **Modelo de tenant de LoyaltyOS**: una instancia compartida multi-tenant o una instancia por merchant — ambas son compatibles con esta especificación, siempre que el `programId` correcto se use por instalación
-- **Estrategia de sesiones del panel de admin**: el PoC usa HMAC capability-URL; producción puede elevar a JWT con expiración o cookies de sesión
+Flows F-01, F-02, F-03, and F-06. The merchant can install, view the admin panel, and accrue points. No storefront widget.
+
+**Definition of done:** A real merchant can install the app, generate a test order, and verify that points were accrued from the admin panel.
+
+### Phase 2 — Storefront Widget
+
+Flows F-04 and F-05. The shopper can view their points and redeem them.
+
+**Definition of done:** A shopper in the store can see their balance, select a reward, obtain a coupon code, and apply it at checkout.
+
+### Phase 3 — Stabilization and Observability
+
+- Handling of expired OAuth token refresh
+- Alerts if the webhook fails in a sustained manner
+- Basic metrics dashboard (active installs, points issued, redemptions)
 
 ---
 
-## 10. Apéndice
+## 9. What Is NOT Prescribed
 
-### 10.1 Referencia de la prueba de concepto
+This RFC defines the **what** (observable behavior) but not the **how** (internal implementation). The following decisions are entirely at the Apps team's discretion:
 
-| Artefacto | Ubicación |
+- **Language and framework**: the PoC uses TypeScript + Fastify, but any stack is valid
+- **Infrastructure**: Heroku, AWS, Railway, Fly.io, or any platform with HTTPS and PostgreSQL
+- **ORM / data access**: Prisma (used in PoC), Drizzle, raw SQL, or any alternative
+- **Deployment strategy**: CI/CD, Docker, buildpacks, etc.
+- **LoyaltyOS tenant model**: a single shared multi-tenant instance or one instance per merchant — both are compatible with this specification, as long as the correct `programId` is used per installation
+- **Admin panel session strategy**: the PoC uses HMAC capability-URL; production may upgrade to JWT with expiry or session cookies
+
+---
+
+## 10. Appendix
+
+### 10.1 Proof of Concept Reference
+
+| Artifact | Location |
 |---|---|
-| Repositorio del conector (PoC) | `github.com/aatronco/jumpseller-loyaltyos-connector` |
-| Tienda de prueba | `alejandrotest.jumpseller.com` |
+| Connector repository (PoC) | `github.com/aatronco/jumpseller-loyaltyos-connector` |
+| Test store | `alejandrotest.jumpseller.com` |
 | LoyaltyOS (open source) | `github.com/loyalty-os/loyaltyos` |
 
-El PoC tiene cobertura de tests unitarios e integración para todos los flujos especificados en §5. Se recomienda revisar los tests como documentación ejecutable del comportamiento esperado.
+The PoC has unit and integration test coverage for all flows specified in §5. It is recommended to review the tests as executable documentation of the expected behavior.
 
-### 10.2 Endpoints LoyaltyOS utilizados
+### 10.2 LoyaltyOS Endpoints Used
 
-| Operación | Método | Path |
+| Operation | Method | Path |
 |---|---|---|
-| Buscar miembro | `GET` | `/api/v1/members?search={email}` |
-| Crear miembro | `POST` | `/api/v1/members` |
-| Registrar evento de compra | `POST` | `/api/v1/events` |
-| Consultar balance | `GET` | `/api/v1/members/{id}/balance` |
-| Listar recompensas (admin) | `GET` | `/api/v1/admin/rewards` |
-| Crear recompensa (admin) | `POST` | `/api/v1/admin/rewards` |
-| Actualizar recompensa (admin) | `PATCH` | `/api/v1/admin/rewards/{id}` |
-| Eliminar recompensa (admin) | `DELETE` | `/api/v1/admin/rewards/{id}` |
+| Find member | `GET` | `/api/v1/members?search={email}` |
+| Create member | `POST` | `/api/v1/members` |
+| Record purchase event | `POST` | `/api/v1/events` |
+| Get balance | `GET` | `/api/v1/members/{id}/balance` |
+| List rewards (admin) | `GET` | `/api/v1/admin/rewards` |
+| Create reward (admin) | `POST` | `/api/v1/admin/rewards` |
+| Update reward (admin) | `PATCH` | `/api/v1/admin/rewards/{id}` |
+| Delete reward (admin) | `DELETE` | `/api/v1/admin/rewards/{id}` |
 
-### 10.3 Glosario
+### 10.3 Glossary
 
-| Término | Definición |
+| Term | Definition |
 |---|---|
-| **Merchant** | Dueño de la tienda Jumpseller que instala la app |
-| **Comprador** | Cliente final que compra en la tienda del merchant |
-| **Puntos** | Unidad de fidelización acumulada por compras |
-| **Recompensa** | Beneficio canjeable por puntos (en esta v1: cupones de descuento de monto fijo) |
-| **Tasa de conversión** | Monto en CLP necesario para acumular 1 punto |
-| **Capability URL** | URL que incorpora un token de acceso como parámetro; quien tiene la URL tiene el acceso |
-| **LoyaltyOS** | Motor de fidelización open-source que gestiona puntos, eventos y recompensas |
-| **Connector** | Esta app: la capa de integración entre Jumpseller y LoyaltyOS |
+| **Merchant** | Jumpseller store owner who installs the app |
+| **Shopper** | End customer who purchases in the merchant's store |
+| **Points** | Loyalty unit accrued through purchases |
+| **Reward** | Benefit redeemable for points (in this v1: fixed-amount discount coupons) |
+| **Conversion rate** | Amount in CLP required to earn 1 point |
+| **Capability URL** | A URL that incorporates an access token as a parameter; whoever holds the URL holds the access |
+| **LoyaltyOS** | Open-source loyalty engine that manages points, events, and rewards |
+| **Connector** | This app: the integration layer between Jumpseller and LoyaltyOS |
