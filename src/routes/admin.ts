@@ -12,7 +12,7 @@ export interface AdminRoutesDeps {
 }
 
 export function computeAdminToken(adminSecret: string, storeId: string): string {
-  return createHmac('sha256', adminSecret).update(storeId).digest('hex').slice(0, 16)
+  return createHmac('sha256', adminSecret).update(storeId).digest('hex')
 }
 
 const REWARD_STOCK = 9999

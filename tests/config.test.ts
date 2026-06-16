@@ -7,6 +7,7 @@ const valid = {
   JUMPSELLER_APP_SECRET: 'app-secret',
   TOKEN_ENCRYPTION_KEY: 'a'.repeat(64),
   JUMPSELLER_WEBHOOK_SECRET: 'hooks-token',
+  ADMIN_TOKEN_SECRET: 'b'.repeat(64),
 }
 
 describe('loadConfig', () => {

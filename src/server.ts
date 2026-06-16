@@ -14,8 +14,21 @@ export interface ServerOptions {
   admin?: AdminRoutesDeps
 }
 
+function redactTokenFromUrl(url: string): string {
+  return url.replace(/([?&])token=[^&]*/gi, '$1token=[REDACTED]')
+}
+
 export function buildServer(opts: ServerOptions = {}): FastifyInstance {
-  const app = Fastify({ logger: { level: 'info' } })
+  const app = Fastify({
+    logger: {
+      level: 'info',
+      serializers: {
+        req(req) {
+          return { method: req.method, url: redactTokenFromUrl(req.url ?? ''), hostname: req.hostname }
+        },
+      },
+    },
+  })
   app.register(healthRoutes)
   if (opts.oauth) {
     app.register(oauthRoutes, opts.oauth)
