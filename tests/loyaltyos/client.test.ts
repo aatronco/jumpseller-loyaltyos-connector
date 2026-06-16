@@ -104,7 +104,7 @@ describe('LoyaltyOsClient', () => {
       const result = await client.createReward({ name: 'Café gratis', description: '{"couponType":"fixed","couponValue":500}', pointsCost: 300, stock: 9999 })
 
       expect(fetchFn).toHaveBeenCalledWith(
-        'http://localhost:3002/admin/rewards',
+        'http://localhost:3002/api/v1/admin/rewards',
         expect.objectContaining({ method: 'POST', body: JSON.stringify({ name: 'Café gratis', description: '{"couponType":"fixed","couponValue":500}', pointsCost: 300, stock: 9999 }) }),
       )
       expect(result).toEqual(reward)
@@ -118,7 +118,7 @@ describe('LoyaltyOsClient', () => {
       const result = await client.updateReward('r1', { name: 'Café grande', pointsCost: 400 })
 
       expect(fetchFn).toHaveBeenCalledWith(
-        'http://localhost:3002/admin/rewards/r1',
+        'http://localhost:3002/api/v1/admin/rewards/r1',
         expect.objectContaining({ method: 'PATCH', body: JSON.stringify({ name: 'Café grande', pointsCost: 400 }) }),
       )
       expect(result).toEqual(updated)
@@ -131,7 +131,7 @@ describe('LoyaltyOsClient', () => {
       await client.deleteReward('r1')
 
       expect(fetchFn).toHaveBeenCalledWith(
-        'http://localhost:3002/admin/rewards/r1',
+        'http://localhost:3002/api/v1/admin/rewards/r1',
         expect.objectContaining({ method: 'DELETE' }),
       )
     })
@@ -143,7 +143,7 @@ describe('LoyaltyOsClient', () => {
 
       const result = await client.listAllRewards()
 
-      expect(fetchFn).toHaveBeenCalledWith('http://localhost:3002/admin/rewards', expect.objectContaining({ method: 'GET' }))
+      expect(fetchFn).toHaveBeenCalledWith('http://localhost:3002/api/v1/admin/rewards', expect.objectContaining({ method: 'GET' }))
       expect(result).toEqual(rewards)
     })
   })

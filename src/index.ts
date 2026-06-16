@@ -44,6 +44,7 @@ const app = buildServer({
   admin: {
     loyalty,
     appUrl: config.APP_URL,
+    adminSecret: config.JUMPSELLER_WEBHOOK_SECRET,
   },
 })
 

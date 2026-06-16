@@ -1,3 +1,4 @@
+import { createHmac, timingSafeEqual } from 'node:crypto'
 import type { FastifyInstance, FastifyReply } from 'fastify'
 import { z } from 'zod'
 import { prisma } from '../db.js'
@@ -7,13 +8,21 @@ import { DEFAULT_CONVERSION_RATE } from '../constants.js'
 export interface AdminRoutesDeps {
   loyalty: LoyaltyOsClient
   appUrl: string
+  adminSecret: string
+}
+
+export function computeAdminToken(adminSecret: string, storeId: string): string {
+  return createHmac('sha256', adminSecret).update(storeId).digest('hex').slice(0, 16)
 }
 
 const REWARD_STOCK = 9999
 
-// Returns the storeId when the install exists; otherwise sends the error
-// response and returns null so handlers can early-return.
-async function requireInstall(store: string | undefined, reply: FastifyReply): Promise<string | null> {
+async function requireInstall(
+  store: string | undefined,
+  token: string | undefined,
+  adminSecret: string,
+  reply: FastifyReply,
+): Promise<string | null> {
   if (!store) {
     await reply.code(400).send({ error: 'missing_store' })
     return null
@@ -23,10 +32,19 @@ async function requireInstall(store: string | undefined, reply: FastifyReply): P
     await reply.code(404).send({ error: 'store_not_found' })
     return null
   }
+  const expected = computeAdminToken(adminSecret, store)
+  const a = Buffer.from(token ?? '', 'utf8')
+  const b = Buffer.from(expected, 'utf8')
+  if (a.length !== b.length || !timingSafeEqual(a, b)) {
+    await reply.code(403).send({ error: 'invalid_token' })
+    return null
+  }
   return store
 }
 
-const storeQuerySchema = z.object({ store: z.string().min(1).optional() })
+const storeQuerySchema = z.object({
+  store: z.string().min(1).optional(),
+})
 const configBodySchema = z.object({ conversionRate: z.number().int().min(1) })
 const rewardBodySchema = z.object({
   name: z.string().min(1),
@@ -118,6 +136,8 @@ function adminHtml(appUrl: string): string {
   var API = window.location.origin
   var params = new URLSearchParams(window.location.search)
   var store = params.get('store') || ''
+  var token = (params.get('token') || '').split('?')[0]
+  var AUTH_HEADERS = { 'X-Admin-Token': token }
   var editingId = null
   var rewardsCache = []
 
@@ -134,8 +154,8 @@ function adminHtml(appUrl: string): string {
 
   function load() {
     Promise.all([
-      fetch(API + '/admin/config?store=' + encodeURIComponent(store)).then(function (r) { return r.json() }),
-      fetch(API + '/admin/rewards?store=' + encodeURIComponent(store)).then(function (r) { return r.json() }),
+      fetch(API + '/admin/config?store=' + encodeURIComponent(store), { headers: AUTH_HEADERS }).then(function (r) { return r.json() }),
+      fetch(API + '/admin/rewards?store=' + encodeURIComponent(store), { headers: AUTH_HEADERS }).then(function (r) { return r.json() }),
     ]).then(function (results) {
       qs('conversion-rate').value = results[0].conversionRate || 1000
       rewardsCache = Array.isArray(results[1]) ? results[1] : []
@@ -217,7 +237,7 @@ function adminHtml(appUrl: string): string {
     var url = API + '/admin/rewards' + (editingId ? '/' + encodeURIComponent(editingId) : '') + '?store=' + encodeURIComponent(store)
     fetch(url, {
       method: editingId ? 'PATCH' : 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: Object.assign({ 'Content-Type': 'application/json' }, AUTH_HEADERS),
       body: JSON.stringify({ name: name, couponValue: val, pointsCost: cost }),
     }).then(function (r) {
       if (!r.ok) throw new Error()
@@ -231,7 +251,7 @@ function adminHtml(appUrl: string): string {
   }
 
   function removeReward(id) {
-    fetch(API + '/admin/rewards/' + encodeURIComponent(id) + '?store=' + encodeURIComponent(store), { method: 'DELETE' })
+    fetch(API + '/admin/rewards/' + encodeURIComponent(id) + '?store=' + encodeURIComponent(store), { method: 'DELETE', headers: AUTH_HEADERS })
       .then(function (r) {
         if (!r.ok && r.status !== 204) throw new Error()
         load()
@@ -247,7 +267,7 @@ function adminHtml(appUrl: string): string {
     if (!rate || rate < 1) { qs('config-error').textContent = 'Ingresa un valor válido.'; return }
     fetch(API + '/admin/config?store=' + encodeURIComponent(store), {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
+      headers: Object.assign({ 'Content-Type': 'application/json' }, AUTH_HEADERS),
       body: JSON.stringify({ conversionRate: rate }),
     }).then(function (r) {
       if (!r.ok) throw new Error()
@@ -273,12 +293,14 @@ function adminHtml(appUrl: string): string {
 
 export async function adminRoutes(server: FastifyInstance, deps: AdminRoutesDeps): Promise<void> {
   server.get('/', async (_req, reply) => {
+    reply.header('Referrer-Policy', 'no-referrer')
     return reply.type('text/html').send(adminHtml(deps.appUrl))
   })
 
   server.get('/admin/config', async (req, reply) => {
     const { store } = storeQuerySchema.parse(req.query)
-    const storeId = await requireInstall(store, reply)
+    const token = req.headers['x-admin-token'] as string | undefined
+    const storeId = await requireInstall(store, token, deps.adminSecret, reply)
     if (!storeId) return
     const cfg = await prisma.storeConfig.findUnique({ where: { storeId } })
     return { conversionRate: cfg?.conversionRate ?? DEFAULT_CONVERSION_RATE }
@@ -286,7 +308,8 @@ export async function adminRoutes(server: FastifyInstance, deps: AdminRoutesDeps
 
   server.patch('/admin/config', async (req, reply) => {
     const { store } = storeQuerySchema.parse(req.query)
-    const storeId = await requireInstall(store, reply)
+    const token = req.headers['x-admin-token'] as string | undefined
+    const storeId = await requireInstall(store, token, deps.adminSecret, reply)
     if (!storeId) return
     const parsed = configBodySchema.safeParse(req.body)
     if (!parsed.success) {
@@ -302,13 +325,15 @@ export async function adminRoutes(server: FastifyInstance, deps: AdminRoutesDeps
 
   server.get('/admin/rewards', async (req, reply) => {
     const { store } = storeQuerySchema.parse(req.query)
-    if (!(await requireInstall(store, reply))) return
+    const token = req.headers['x-admin-token'] as string | undefined
+    if (!(await requireInstall(store, token, deps.adminSecret, reply))) return
     return deps.loyalty.listAllRewards()
   })
 
   server.post('/admin/rewards', async (req, reply) => {
     const { store } = storeQuerySchema.parse(req.query)
-    if (!(await requireInstall(store, reply))) return
+    const token = req.headers['x-admin-token'] as string | undefined
+    if (!(await requireInstall(store, token, deps.adminSecret, reply))) return
     const parsed = rewardBodySchema.safeParse(req.body)
     if (!parsed.success) {
       return reply.code(400).send({ error: 'invalid_body' })
@@ -325,7 +350,8 @@ export async function adminRoutes(server: FastifyInstance, deps: AdminRoutesDeps
 
   server.patch('/admin/rewards/:id', async (req, reply) => {
     const { store } = storeQuerySchema.parse(req.query)
-    if (!(await requireInstall(store, reply))) return
+    const token = req.headers['x-admin-token'] as string | undefined
+    if (!(await requireInstall(store, token, deps.adminSecret, reply))) return
     const { id } = rewardParamsSchema.parse(req.params)
     const parsed = rewardPatchSchema.safeParse(req.body)
     if (!parsed.success) {
@@ -345,7 +371,8 @@ export async function adminRoutes(server: FastifyInstance, deps: AdminRoutesDeps
 
   server.delete('/admin/rewards/:id', async (req, reply) => {
     const { store } = storeQuerySchema.parse(req.query)
-    if (!(await requireInstall(store, reply))) return
+    const token = req.headers['x-admin-token'] as string | undefined
+    if (!(await requireInstall(store, token, deps.adminSecret, reply))) return
     const { id } = rewardParamsSchema.parse(req.params)
     await deps.loyalty.deleteReward(id)
     return reply.code(204).send()

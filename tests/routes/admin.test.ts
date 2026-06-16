@@ -2,9 +2,12 @@ import { describe, it, expect, vi, afterAll, beforeEach } from 'vitest'
 import { buildServer } from '../../src/server.js'
 import { prisma } from '../../src/db.js'
 import type { LoyaltyOsClient, Reward } from '../../src/loyaltyos/client.js'
+import { computeAdminToken } from '../../src/routes/admin.js'
 
 const STORE = 'store_admin'
 const APP_URL = 'https://conn.test'
+const ADMIN_SECRET = 'test-admin-secret'
+const VALID_TOKEN = computeAdminToken(ADMIN_SECRET, STORE)
 
 afterAll(async () => {
   await prisma.$disconnect()
@@ -45,7 +48,7 @@ async function seedInstall() {
 }
 
 function appWith(loyalty: AdminStub) {
-  return buildServer({ admin: { loyalty: loyalty as unknown as LoyaltyOsClient, appUrl: APP_URL } })
+  return buildServer({ admin: { loyalty: loyalty as unknown as LoyaltyOsClient, appUrl: APP_URL, adminSecret: ADMIN_SECRET } })
 }
 
 describe('GET /', () => {
@@ -76,7 +79,7 @@ describe('GET /admin/config', () => {
   it('returns default conversion rate for a new store', async () => {
     await seedInstall()
     const app = appWith(stubLoyalty())
-    const res = await app.inject({ method: 'GET', url: `/admin/config?store=${STORE}` })
+    const res = await app.inject({ method: 'GET', url: `/admin/config?store=${STORE}`, headers: { 'x-admin-token': VALID_TOKEN } })
     expect(res.statusCode).toBe(200)
     expect(res.json()).toEqual({ conversionRate: 1000 })
     await app.close()
@@ -91,7 +94,7 @@ describe('PATCH /admin/config', () => {
       method: 'PATCH',
       url: `/admin/config?store=${STORE}`,
       payload: { conversionRate: 500 },
-      headers: { 'content-type': 'application/json' },
+      headers: { 'content-type': 'application/json', 'x-admin-token': VALID_TOKEN },
     })
     expect(res.statusCode).toBe(200)
     expect(res.json()).toEqual({ conversionRate: 500 })
@@ -108,7 +111,7 @@ describe('PATCH /admin/config', () => {
       method: 'PATCH',
       url: `/admin/config?store=${STORE}`,
       payload: { conversionRate: 0 },
-      headers: { 'content-type': 'application/json' },
+      headers: { 'content-type': 'application/json', 'x-admin-token': VALID_TOKEN },
     })
     expect(res.statusCode).toBe(400)
     await app.close()
@@ -130,7 +133,7 @@ describe('GET /admin/rewards', () => {
     ]
     const loyalty = stubLoyalty(rewards)
     const app = appWith(loyalty)
-    const res = await app.inject({ method: 'GET', url: `/admin/rewards?store=${STORE}` })
+    const res = await app.inject({ method: 'GET', url: `/admin/rewards?store=${STORE}`, headers: { 'x-admin-token': VALID_TOKEN } })
     expect(res.statusCode).toBe(200)
     expect(res.json()).toEqual(rewards)
     expect(loyalty.listAllRewards).toHaveBeenCalledTimes(1)
@@ -147,7 +150,7 @@ describe('POST /admin/rewards', () => {
       method: 'POST',
       url: `/admin/rewards?store=${STORE}`,
       payload: { name: 'Test', couponValue: 1000, pointsCost: 100 },
-      headers: { 'content-type': 'application/json' },
+      headers: { 'content-type': 'application/json', 'x-admin-token': VALID_TOKEN },
     })
     expect(res.statusCode).toBe(201)
     expect(loyalty.createReward).toHaveBeenCalledWith({
@@ -169,7 +172,7 @@ describe('PATCH /admin/rewards/:id', () => {
       method: 'PATCH',
       url: `/admin/rewards/r1?store=${STORE}`,
       payload: { name: 'New name', pointsCost: 200 },
-      headers: { 'content-type': 'application/json' },
+      headers: { 'content-type': 'application/json', 'x-admin-token': VALID_TOKEN },
     })
     expect(res.statusCode).toBe(200)
     expect(loyalty.updateReward).toHaveBeenCalledWith('r1', expect.objectContaining({ name: 'New name', pointsCost: 200 }))
@@ -184,7 +187,7 @@ describe('PATCH /admin/rewards/:id', () => {
       method: 'PATCH',
       url: `/admin/rewards/r1?store=${STORE}`,
       payload: { couponValue: 3000 },
-      headers: { 'content-type': 'application/json' },
+      headers: { 'content-type': 'application/json', 'x-admin-token': VALID_TOKEN },
     })
     expect(res.statusCode).toBe(200)
     expect(loyalty.updateReward).toHaveBeenCalledWith(
@@ -201,7 +204,7 @@ describe('PATCH /admin/rewards/:id', () => {
       method: 'PATCH',
       url: `/admin/rewards/r1?store=${STORE}`,
       payload: {},
-      headers: { 'content-type': 'application/json' },
+      headers: { 'content-type': 'application/json', 'x-admin-token': VALID_TOKEN },
     })
     expect(res.statusCode).toBe(400)
     await app.close()
@@ -216,6 +219,7 @@ describe('DELETE /admin/rewards/:id', () => {
     const res = await app.inject({
       method: 'DELETE',
       url: `/admin/rewards/r1?store=${STORE}`,
+      headers: { 'x-admin-token': VALID_TOKEN },
     })
     expect(res.statusCode).toBe(204)
     expect(loyalty.deleteReward).toHaveBeenCalledWith('r1')
